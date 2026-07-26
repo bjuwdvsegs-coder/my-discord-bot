@@ -532,19 +532,22 @@ client.on('messageCreate', async (message) => {
         ytdlpProc.on('error', err => console.log('yt-dlp spawn error:', err.message));
         ffmpegProc.on('error', err => console.log('ffmpeg spawn error:', err.message));
 
-        // ── Step 5: Join voice channel and wait for Ready state ──
-        const connection = voicePkg.joinVoiceChannel({
-          channelId: voiceChannel.id,
-          guildId: message.guild.id,
-          adapterCreator: message.guild.voiceAdapterCreator,
-          selfDeaf: false,
-          selfMute: false
-        });
+        // ── Step 5: Reuse existing voice connection or join channel ──
+        let connection = voicePkg.getVoiceConnection(message.guild.id);
+        if (!connection || connection.joinConfig.channelId !== voiceChannel.id) {
+          connection = voicePkg.joinVoiceChannel({
+            channelId: voiceChannel.id,
+            guildId: message.guild.id,
+            adapterCreator: message.guild.voiceAdapterCreator,
+            selfDeaf: false,
+            selfMute: false
+          });
 
-        try {
-          await voicePkg.entersState(connection, voicePkg.VoiceConnectionStatus.Ready, 15_000);
-        } catch (connErr) {
-          console.log('Voice connection timeout:', connErr.message);
+          try {
+            await voicePkg.entersState(connection, voicePkg.VoiceConnectionStatus.Ready, 15_000);
+          } catch (connErr) {
+            console.log('Voice connection timeout:', connErr.message);
+          }
         }
 
         // ── Step 6: Create audio resource from ffmpeg stdout ──
@@ -581,12 +584,17 @@ client.on('messageCreate', async (message) => {
         player.on('error', err => console.log('Player error:', err.message));
         connection.on('error', err => console.log('Connection error:', err.message));
 
-        // ── Step 7: Success embed ──
+        // ── Step 7: Success embed with Download Link ──
         const displayTitle = songArtist ? `${songTitle} — ${songArtist}` : songTitle;
         const playEmbed = new EmbedBuilder()
           .setColor(0xFF1493)
           .setTitle(`🎤 يتم الآن البث | Now Streaming`)
-          .setDescription(`> 🎵 **${displayTitle}**\n> 🔊 **الروم:** <#${voiceChannel.id}>\n> 👤 **بواسطة:** <@${message.author.id}>`)
+          .setDescription(
+            `> 🎵 **${displayTitle}**\n` +
+            `> 🔊 **الروم:** <#${voiceChannel.id}>\n` +
+            `> 👤 **بواسطة:** <@${message.author.id}>\n\n` +
+            `📥 **[اضغط هنا لتحميل/استماع الأغنية | Download Audio Link](${youtubeUrl})**`
+          )
           .setThumbnail(coverImage)
           .setFooter({ text: 'Powered by yt-dlp + FFmpeg 🎧' });
 
