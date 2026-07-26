@@ -24,7 +24,28 @@ const { spawn } = require('child_process');
 
 // ── Audio engine paths ──
 const FFMPEG_PATH = (() => { try { return require('ffmpeg-static'); } catch(e) { return 'ffmpeg'; } })();
-const YTDLP_PATH = path.join(__dirname, 'yt-dlp.exe');
+const fs = require('fs');
+const YTDlpWrap = require('yt-dlp-wrap').default;
+
+const YTDLP_BINARY_NAME = process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
+let YTDLP_PATH = path.join(__dirname, YTDLP_BINARY_NAME);
+
+async function ensureYtDlpBinary() {
+  try {
+    if (!fs.existsSync(YTDLP_PATH)) {
+      console.log(`📦 Downloading yt-dlp binary for ${process.platform}...`);
+      await YTDlpWrap.downloadFromGithub(YTDLP_PATH);
+      if (process.platform !== 'win32') {
+        try { fs.chmodSync(YTDLP_PATH, 0o755); } catch(e) {}
+      }
+      console.log('✅ yt-dlp binary ready!');
+    }
+  } catch (err) {
+    console.log('⚠️ Failed to auto-download yt-dlp, using system fallback:', err.message);
+    YTDLP_PATH = 'yt-dlp';
+  }
+}
+ensureYtDlpBinary();
 
 let voicePkg, playDl, spotifyUrlInfo;
 try {
@@ -223,27 +244,38 @@ const ANIME_GIFS = {
   ],
 };
 
-// Smart GIF fetcher: uses waifu.pics API (most reliable), falls back to local tenor GIFs
+const ANIME_GIF_FALLBACKS = {
+  hug: ['https://cdn.otakugifs.xyz/gifs/hug/df0840a507aa481a.gif', 'https://cdn.otakugifs.xyz/gifs/hug/6d915e537c818fa9.gif'],
+  kiss: ['https://cdn.otakugifs.xyz/gifs/kiss/e8620e4b5d4907df.gif'],
+  pat: ['https://cdn.otakugifs.xyz/gifs/pat/13ec930fd42770f6.gif'],
+  slap: ['https://cdn.otakugifs.xyz/gifs/slap/728770007827600b.gif'],
+  cuddle: ['https://cdn.otakugifs.xyz/gifs/cuddle/7dca23f6128a1897.gif'],
+  dance: ['https://cdn.otakugifs.xyz/gifs/dance/0fd2b6003eb5dad1.gif'],
+  cry: ['https://cdn.otakugifs.xyz/gifs/cry/c97b378c7184ea59.gif'],
+  blush: ['https://cdn.otakugifs.xyz/gifs/blush/rh8KXQBMWBka.gif'],
+  happy: ['https://cdn.otakugifs.xyz/gifs/happy/vhplowmpdJ.gif'],
+  wave: ['https://cdn.otakugifs.xyz/gifs/wave/d8a72db89663ed79.gif'],
+  poke: ['https://cdn.otakugifs.xyz/gifs/poke/08002e2d348de3f5.gif'],
+  punch: ['https://cdn.otakugifs.xyz/gifs/punch/a68e34a1994c91f7.gif'],
+  bite: ['https://cdn.otakugifs.xyz/gifs/bite/1c10d5980ba1830b.gif'],
+  wink: ['https://cdn.otakugifs.xyz/gifs/wink/1c383c21519a03f2.gif'],
+  smug: ['https://cdn.otakugifs.xyz/gifs/smug/65b7d98434dd9b51.gif'],
+  shrug: ['https://cdn.otakugifs.xyz/gifs/shrug/9647cbc5d03a7b8b.gif'],
+  sleep: ['https://cdn.otakugifs.xyz/gifs/sleep/93653e80a930251f.gif'],
+  facepalm: ['https://cdn.otakugifs.xyz/gifs/facepalm/de2fe17a75556e04.gif'],
+  thumbsup: ['https://cdn.otakugifs.xyz/gifs/thumbsup/86c02b24f136e08f.gif']
+};
+
 function fetchAnimeGif(type) {
   return new Promise((resolve) => {
-    const waifuMap = {
-      hug:'hug', kiss:'kiss', pat:'pat', slap:'slap', cuddle:'cuddle',
-      dance:'dance', smug:'smug', poke:'poke', punch:'punch', cry:'cry',
-      blush:'blush', wave:'wave', highfive:'highfive', bite:'bite',
-      bored:'bored', happy:'happy', sleep:'sleep', waifu:'waifu', neko:'neko'
-    };
-
     const useFallback = () => {
-      const list = ANIME_GIFS[type] || ANIME_GIFS.hug;
+      const list = ANIME_GIF_FALLBACKS[type] || ANIME_GIF_FALLBACKS.hug;
       resolve(list[Math.floor(Math.random() * list.length)]);
     };
 
-    const endpoint = waifuMap[type];
-    if (!endpoint) return useFallback();
-
-    const req = https.get(`https://api.waifu.pics/sfw/${endpoint}`, {
-      timeout: 4000,
-      headers: { 'User-Agent': 'DiscordBot/1.0' }
+    const req = https.get(`https://api.otakugifs.xyz/gif?reaction=${type}`, {
+      timeout: 3500,
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
     }, (res) => {
       let d = '';
       res.on('data', c => d += c);
@@ -611,6 +643,7 @@ client.on('messageCreate', async (message) => {
         }
 
         console.log('▶ Streaming via yt-dlp:', youtubeUrl);
+        await ensureYtDlpBinary();
 
         // ── Step 4: Create stream using yt-dlp + ffmpeg ──
         // yt-dlp downloads audio and pipes to ffmpeg which encodes to opus
