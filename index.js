@@ -648,9 +648,8 @@ client.on('messageCreate', async (message) => {
         // ── Step 4: Create stream using yt-dlp + ffmpeg ──
         // yt-dlp downloads audio and pipes to ffmpeg which encodes to opus
         const ytdlpProc = spawn(YTDLP_PATH, [
-          '-x',
-          '--audio-format', 'opus',
-          '--audio-quality', '0',
+          '-f', 'bestaudio/best',
+          '--ffmpeg-location', FFMPEG_PATH,
           '-o', '-',
           '--no-playlist',
           '-q',
