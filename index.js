@@ -532,7 +532,7 @@ client.on('messageCreate', async (message) => {
         ytdlpProc.on('error', err => console.log('yt-dlp spawn error:', err.message));
         ffmpegProc.on('error', err => console.log('ffmpeg spawn error:', err.message));
 
-        // ── Step 5: Join voice channel ──
+        // ── Step 5: Join voice channel and wait for Ready state ──
         const connection = voicePkg.joinVoiceChannel({
           channelId: voiceChannel.id,
           guildId: message.guild.id,
@@ -540,6 +540,12 @@ client.on('messageCreate', async (message) => {
           selfDeaf: false,
           selfMute: false
         });
+
+        try {
+          await voicePkg.entersState(connection, voicePkg.VoiceConnectionStatus.Ready, 15_000);
+        } catch (connErr) {
+          console.log('Voice connection timeout:', connErr.message);
+        }
 
         // ── Step 6: Create audio resource from ffmpeg stdout ──
         const resource = voicePkg.createAudioResource(ffmpegProc.stdout, {
@@ -558,12 +564,20 @@ client.on('messageCreate', async (message) => {
 
         voiceData.set(message.guild.id, { connection, player, ytdlpProc, ffmpegProc });
 
-        player.on(voicePkg.AudioPlayerStatus.Idle, () => {
-          try { ytdlpProc.kill(); } catch(e) {}
-          try { ffmpegProc.kill(); } catch(e) {}
-          connection.destroy();
-          voiceData.delete(message.guild.id);
+        // Only destroy connection when song has ACTUALLY played and then finished
+        let hasStartedPlaying = false;
+        player.on('stateChange', (oldState, newState) => {
+          if (newState.status === voicePkg.AudioPlayerStatus.Playing) {
+            hasStartedPlaying = true;
+          }
+          if (hasStartedPlaying && newState.status === voicePkg.AudioPlayerStatus.Idle) {
+            try { ytdlpProc.kill(); } catch(e) {}
+            try { ffmpegProc.kill(); } catch(e) {}
+            try { connection.destroy(); } catch(e) {}
+            voiceData.delete(message.guild.id);
+          }
         });
+
         player.on('error', err => console.log('Player error:', err.message));
         connection.on('error', err => console.log('Connection error:', err.message));
 
