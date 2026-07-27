@@ -75,7 +75,8 @@ async function ensureYtDlp() {
 }
 
 // ══════════════════════════════════════════
-// ── Audio Stream via yt-dlp + ffmpeg ──
+// ── Audio Stream via yt-dlp + FFmpeg (OggOpus Output) ──
+// Direct Opus encoding guarantees loud & clear Discord voice audio
 // ══════════════════════════════════════════
 function createYtDlpStream(youtubeUrl, binaryPath) {
   const ytdlpArgs = [
@@ -95,13 +96,16 @@ function createYtDlpStream(youtubeUrl, binaryPath) {
 
   const ytdlpProc = spawn(binaryPath, ytdlpArgs);
 
+  // Encode directly to OggOpus for Discord Native Voice playback
   const ffmpegArgs = [
     '-i', 'pipe:0',
     '-analyzeduration', '0',
     '-loglevel', 'quiet',
-    '-f', 's16le',
+    '-acodec', 'libopus',
+    '-f', 'opus',
     '-ar', '48000',
     '-ac', '2',
+    '-b:a', '128k',
     'pipe:1'
   ];
 
@@ -131,7 +135,6 @@ function createYtDlpStream(youtubeUrl, binaryPath) {
 
 // ══════════════════════════════════════════
 // ── Pure Node HTTP Fallback Downloader (Cobalt API) ──
-// Works even if Python is missing on the server!
 // ══════════════════════════════════════════
 function downloadViaCobalt(mediaUrl, outputPath) {
   return new Promise((resolve, reject) => {
@@ -183,10 +186,9 @@ function downloadViaCobalt(mediaUrl, outputPath) {
 }
 
 // ══════════════════════════════════════════
-// ── Robust Media Downloader (yt-dlp with Cobalt fallback) ──
+// ── Robust Media Downloader ──
 // ══════════════════════════════════════════
 async function downloadVideo(url, outputPath) {
-  // First attempt: yt-dlp
   try {
     const binaryPath = await ensureYtDlp();
     await new Promise((resolve, reject) => {
@@ -214,8 +216,7 @@ async function downloadVideo(url, outputPath) {
     });
     return;
   } catch (ytdlpErr) {
-    console.log('⚠️ yt-dlp download failed, attempting Cobalt API fallback:', ytdlpErr.message);
-    // Second attempt: Cobalt API (Pure JS, no Python needed)
+    console.log('⚠️ yt-dlp download failed, trying Cobalt API:', ytdlpErr.message);
     try {
       await downloadViaCobalt(url, outputPath);
       if (fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0) return;
@@ -294,7 +295,7 @@ const GIF_URL = process.env.GIF_URL || "https://i.pinimg.com/originals/f2/eb/01/
 const DEFAULT_TIMEOUT_MIN = parseInt(process.env.DEFAULT_TIMEOUT_MINUTES || "5");
 const MAX_UPLOAD_MB = parseInt(process.env.MAX_UPLOAD_MB || "25");
 
-// ── EXPANDED ANIME GIF ENGINE (35+ Reactions) ──
+// ── EXPANDED ANIME GIF ENGINE ──
 const ANIME_GIF_FALLBACKS = {
   hug:       ['https://cdn.otakugifs.xyz/gifs/hug/df0840a507aa481a.gif','https://cdn.otakugifs.xyz/gifs/hug/6d915e537c818fa9.gif','https://i.giphy.com/media/l2QDM9Jnim1YV55YA/giphy.gif'],
   kiss:      ['https://cdn.otakugifs.xyz/gifs/kiss/e8620e4b5d4907df.gif','https://i.giphy.com/media/G3va31oEEnIkM/giphy.gif'],
@@ -419,7 +420,7 @@ function createHelpEmbed(category, user, client) {
     .setDescription(
       `### 🎵 مشغل الصوت الفائق:\n` +
       `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}join\` ➔ الانضمام للروم الصوتي في السيرفر\n` +
-      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}play <اسم الأغنية / رابط YouTube / Spotify>\` ➔ البث الصوتي الفوري\n` +
+      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}play <اسم الأغنية / رابط YouTube / Spotify>\` ➔ البث الصوتي المباشر\n` +
       `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}stop\` / \`${PREFIX}leave\` ➔ إيقاف ومغادرة الروم الصوتي`
     );
 
@@ -717,7 +718,7 @@ client.on('messageCreate', async (message) => {
   }
 
   // ══════════════════════════════════════════
-  // ── 📥 DOWNLOAD COMMAND (IMPROVED DIRECT LINK + COBALT FALLBACK) ──
+  // ── 📥 DOWNLOAD COMMAND (INDEPENDENT COMMAND ONLY) ──
   // ══════════════════════════════════════════
   if (['download', 'dl', 'تحميل'].includes(command)) {
     const url = args[0];
@@ -776,7 +777,7 @@ client.on('messageCreate', async (message) => {
           `> 👤 **بواسطة:** <@${message.author.id}>\n\n` +
           `📥 **[اضغط هنا للتحميل المباشر بصيغ مختلفة](${directDlLink})**`
         )
-        .setFooter({ text: 'Powered by yt-dlp 📥' });
+        .setFooter({ text: 'Powered by Direct Downloader 📥' });
 
       await statusMsg.edit({
         content: null,
@@ -806,7 +807,7 @@ client.on('messageCreate', async (message) => {
   }
 
   // ══════════════════════════════════════════
-  // ── VOICE / MUSIC COMMANDS ──
+  // ── VOICE / MUSIC COMMANDS (CLEAN PLAY ONLY - NO DOWNLOAD BUTTONS) ──
   // ══════════════════════════════════════════
   if (['join', 'connect', 'play', 'stop', 'leave'].includes(command)) {
     const voiceChannel = message.member?.voice?.channel;
@@ -845,7 +846,7 @@ client.on('messageCreate', async (message) => {
       return message.reply(`البوت غير متصل حالياً!`);
     }
 
-    // ── PLAY ──
+    // ── PLAY (CLEAN & DIRECT VOICE AUDIO) ──
     if (command === 'play') {
       let searchQuery = args.join(' ');
       if (!searchQuery) return message.reply(`${EMOJIS.TOHRU_SMUG} اكتب اسم الأغنية أو رابط Spotify/YouTube.`);
@@ -895,7 +896,7 @@ client.on('messageCreate', async (message) => {
             }
           } catch(e) {}
 
-        // ── 3. Plain Text search via yt-search (no bot detection) ──
+        // ── 3. Plain Text search via yt-search ──
         } else {
           const searchRes = await yts(searchQuery);
           if (searchRes?.videos?.length > 0) {
@@ -919,6 +920,7 @@ client.on('messageCreate', async (message) => {
           try { if (existingData.ffmpegProc) existingData.ffmpegProc.kill('SIGKILL'); } catch(e) {}
         }
 
+        // Create OggOpus stream for Discord Native Voice
         const { ytdlpProc, ffmpegProc, audioStream } = createYtDlpStream(youtubeUrl, binaryPath);
 
         let connection = voicePkg.getVoiceConnection(message.guild.id);
@@ -938,11 +940,11 @@ client.on('messageCreate', async (message) => {
           return statusMsg.edit(`❌ فشل الاتصال بالروم الصوتي. حاول مجدداً.`);
         }
 
+        // Native OggOpus Resource (No JS Opus re-encoding needed = Pure Sound)
         const resource = voicePkg.createAudioResource(audioStream, {
-          inputType: voicePkg.StreamType.Raw,
-          inlineVolume: true
+          inputType: voicePkg.StreamType.OggOpus,
+          inlineVolume: false
         });
-        if (resource.volume) resource.volume.setVolume(1.0);
 
         const player = voicePkg.createAudioPlayer({
           behaviors: { noSubscriber: voicePkg.NoSubscriberBehavior.Play }
@@ -954,14 +956,14 @@ client.on('messageCreate', async (message) => {
 
         let hasPlayed = false;
         player.on('stateChange', (oldState, newState) => {
-          console.log(`🎵 Player status: ${oldState.status} → ${newState.status}`);
+          console.log(`🎵 Voice Player State: ${oldState.status} → ${newState.status}`);
           if (newState.status === voicePkg.AudioPlayerStatus.Playing) hasPlayed = true;
           if (hasPlayed && newState.status === voicePkg.AudioPlayerStatus.Idle) {
             try { ytdlpProc.kill('SIGKILL'); } catch(e) {}
             try { ffmpegProc.kill('SIGKILL'); } catch(e) {}
             const d = voiceData.get(message.guild.id);
             if (d) voiceData.set(message.guild.id, { connection: d.connection });
-            console.log('✅ Song ended. Bot stays in voice channel.');
+            console.log('✅ Song ended. Bot stays connected in voice channel.');
           }
         });
 
@@ -972,35 +974,22 @@ client.on('messageCreate', async (message) => {
         });
 
         const displayTitle = songArtist ? `${songTitle} — ${songArtist}` : songTitle;
-        const directDlLink = getDirectDownloadLink(youtubeUrl);
 
-        // Buttons for Download and YouTube
-        const downloadBtn = new ButtonBuilder()
-          .setLabel('📥 تحميل MP3/MP4 (Direct Download)')
-          .setStyle(ButtonStyle.Link)
-          .setURL(directDlLink);
-
-        const youtubeBtn = new ButtonBuilder()
-          .setLabel('🎬 فتح على YouTube')
-          .setStyle(ButtonStyle.Link)
-          .setURL(youtubeUrl);
-
+        // Clean embed ONLY (No download buttons attached to !play)
         const playEmbed = new EmbedBuilder()
           .setColor(0xFF1493)
           .setTitle(`🎤 يتم الآن البث الصوتـي | Streaming Now`)
           .setDescription(
             `> 🎵 **${displayTitle}**\n` +
             `> 🔊 **الروم الصوتي:** <#${voiceChannel.id}>\n` +
-            `> 👤 **بواسطة:** <@${message.author.id}>\n\n` +
-            `> 📥 **[اضغط هنا لتحميل الصوت/الفيديو مباشرة](${directDlLink})**`
+            `> 👤 **بواسطة:** <@${message.author.id}>`
           )
           .setThumbnail(coverImage)
-          .setFooter({ text: 'Powered by yt-dlp + FFmpeg 🎧' });
+          .setFooter({ text: 'Live Voice Stream 🎧' });
 
         return statusMsg.edit({
           content: null,
-          embeds: [playEmbed],
-          components: [new ActionRowBuilder().addComponents(downloadBtn, youtubeBtn)]
+          embeds: [playEmbed]
         });
 
       } catch (err) {
