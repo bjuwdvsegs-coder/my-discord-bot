@@ -403,17 +403,42 @@ function createHelpEmbed(category, user, client) {
     );
 
   if (category === 'anime') return base
-    .setTitle(`${EMOJIS.REM_DANCE} تفاعلات وصور الأنمي | Anime GIFs Suite`)
+    .setTitle(`✨ 𝑨𝒏𝒊𝒎𝒆 𝑺𝒖𝒊𝒕𝒆 — تفاعلات الأنمي 🌸`)
     .setDescription(
-      `### 🎭 تفاعلات الأعضاء (Member Interactions):\n` +
-      `> 💖 \`${PREFIX}hug\` · \`${PREFIX}kiss\` · \`${PREFIX}cuddle\` · \`${PREFIX}pat\` · \`${PREFIX}wink\`\n` +
-      `> 👊 \`${PREFIX}slap\` · \`${PREFIX}punch\` · \`${PREFIX}poke\` · \`${PREFIX}bite\` · \`${PREFIX}bonk\`\n` +
-      `> ⚔️ \`${PREFIX}kill\` · \`${PREFIX}shoot\` · \`${PREFIX}lick\` · \`${PREFIX}nom\` · \`${PREFIX}kick\`\n\n` +
-      `### 🌸 التفاعلات الشخصية والصور (Self Reactions):\n` +
-      `> 💃 \`${PREFIX}dance\` · \`${PREFIX}happy\` · \`${PREFIX}blush\` · \`${PREFIX}cry\` · \`${PREFIX}sleep\`\n` +
-      `> 😏 \`${PREFIX}smug\` · \`${PREFIX}bored\` · \`${PREFIX}think\` · \`${PREFIX}facepalm\` · \`${PREFIX}clap\`\n` +
-      `> 🖼️ \`${PREFIX}waifu\` · \`${PREFIX}neko\` · \`${PREFIX}thumbsup\` · \`${PREFIX}shrug\``
-    );
+      `\`\`\`\n❀ Rilina Suite — Anime Interactions Panel ❀\n\`\`\`` +
+      `\n` +
+      `**╔══════ 💝 تفاعلات المحبة ══════╗**\n` +
+      `> 🫂 \`${PREFIX}hug\` ➜ احتضان عضو بحرارة\n` +
+      `> 💋 \`${PREFIX}kiss\` ➜ إرسال قبلة رومانسية\n` +
+      `> 🥰 \`${PREFIX}cuddle\` ➜ الاحتضان المدلل\n` +
+      `> 🌸 \`${PREFIX}pat\` ➜ دغدغة الرأس بحنان\n` +
+      `> 😉 \`${PREFIX}wink\` ➜ غمزة دلع\n` +
+      `**╚══════════════════════════╝**\n\n` +
+      `**╔══════ 💢 ردود الأفعال القوية ══════╗**\n` +
+      `> 👋 \`${PREFIX}slap\` ➜ صفعة بالأنمي ستايل\n` +
+      `> 👊 \`${PREFIX}punch\` ➜ لكمة قوية جداً!\n` +
+      `> 👉 \`${PREFIX}poke\` ➜ نكزة خفيفة\n` +
+      `> 😬 \`${PREFIX}bite\` ➜ عض مؤلم!\n` +
+      `> 🔨 \`${PREFIX}bonk\` ➜ بونك! اذهب للسجن 🚔\n` +
+      `> 💀 \`${PREFIX}kill\` · \`${PREFIX}shoot\` ➜ نهاية درامية!\n` +
+      `> 👅 \`${PREFIX}lick\` · \`${PREFIX}nom\` ➜ لحس / عض دلع\n` +
+      `**╚══════════════════════════╝**\n\n` +
+      `**╔══════ 🌙 التفاعلات الشخصية ══════╗**\n` +
+      `> 💃 \`${PREFIX}dance\` ➜ اعرض رقصة أنمي مذهلة\n` +
+      `> 😊 \`${PREFIX}happy\` ➜ فرحة قلبية لا توصف\n` +
+      `> 😳 \`${PREFIX}blush\` ➜ احمرار الخدود من الحرج\n` +
+      `> 😢 \`${PREFIX}cry\` ➜ دموع الأنمي الحزينة\n` +
+      `> 😴 \`${PREFIX}sleep\` ➜ سكون ونعاس أنيمي\n` +
+      `> 😏 \`${PREFIX}smug\` ➜ نظرة متعجرفة بامتياز\n` +
+      `> 🤔 \`${PREFIX}think\` · \`${PREFIX}bored\` · \`${PREFIX}clap\`\n` +
+      `> 🤦 \`${PREFIX}facepalm\` · \`${PREFIX}shrug\` · \`${PREFIX}thumbsup\`\n` +
+      `**╚══════════════════════════╝**\n\n` +
+      `**╔══════ 🖼️ صور الأنمي العشوائية ══════╗**\n` +
+      `> 👗 \`${PREFIX}waifu\` ➜ صورة وايفو عشوائية\n` +
+      `> 🐱 \`${PREFIX}neko\` ➜ فتاة نيكو أنيمي\n` +
+      `**╚══════════════════════════╝**`
+    )
+    .setImage('https://media.giphy.com/media/l3q2zVr6cu95nF6O4/giphy.gif');
 
   if (category === 'music') return base
     .setTitle(`🎤 الروم الصوتي والموسيقى | Live Voice Channel`)
