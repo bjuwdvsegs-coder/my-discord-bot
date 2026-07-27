@@ -296,32 +296,26 @@ const DEFAULT_TIMEOUT_MIN = parseInt(process.env.DEFAULT_TIMEOUT_MINUTES || "5")
 const MAX_UPLOAD_MB = parseInt(process.env.MAX_UPLOAD_MB || "25");
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 
-// ── AI Chat via Google Gemini ──
+// ── AI Chat via Pollinations.ai (FREE — No Key Required) ──
 async function askGemini(question) {
   return new Promise((resolve) => {
-    const apiKey = GEMINI_API_KEY;
-    if (!apiKey) return resolve('❌ لم يتم تكوين مفتاح Gemini API. أضف `GEMINI_API_KEY` في متغيرات البيئة.');
-    const body = JSON.stringify({ contents: [{ parts: [{ text: `أنت مساعد ذكي ومفيد اسمك Rilina. أجب باللغة العربية أو الإنجليزية حسب السؤال بشكل واضح ومختصر.\n\nالسؤال: ${question}` }] }] });
-    const req = https.request({
-      hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
+    const prompt = encodeURIComponent(
+      `أنت مساعد ذكي اسمك Rilina. أجب باللغة العربية أو الإنجليزية حسب السؤال بشكل واضح ومختصر.\n\nالسؤال: ${question}`
+    );
+    const url = `https://text.pollinations.ai/${prompt}`;
+    const req = https.get(url, {
+      timeout: 20000,
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; RilinaBot/1.0)' }
     }, (res) => {
       let data = '';
       res.on('data', c => data += c);
       res.on('end', () => {
-        try {
-          const json = JSON.parse(data);
-          const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
-          resolve(text || '⚠️ لم أتمكن من الحصول على رد. حاول مرة أخرى.');
-        } catch (e) { resolve('❌ خطأ في معالجة رد الذكاء الاصطناعي.'); }
+        const reply = data.trim();
+        resolve(reply.length > 0 ? reply : '⚠️ لم أتمكن من الحصول على رد. حاول مرة أخرى.');
       });
     });
-    req.on('error', () => resolve('❌ فشل الاتصال بخادم Gemini AI.'));
-    req.setTimeout(15000, () => { req.destroy(); resolve('⏱️ انتهت مهلة الرد. حاول مرة أخرى.'); });
-    req.write(body);
-    req.end();
+    req.on('error', () => resolve('❌ فشل الاتصال بخادم AI. حاول لاحقاً.'));
+    req.setTimeout(20000, () => { req.destroy(); resolve('⏱️ انتهت مهلة الرد. حاول مرة أخرى.'); });
   });
 }
 
