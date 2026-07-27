@@ -294,6 +294,52 @@ const PREFIX = process.env.PREFIX || "!";
 const GIF_URL = process.env.GIF_URL || "https://i.pinimg.com/originals/f2/eb/01/f2eb01e229d23e6d98785859de3d9b94.gif";
 const DEFAULT_TIMEOUT_MIN = parseInt(process.env.DEFAULT_TIMEOUT_MINUTES || "5");
 const MAX_UPLOAD_MB = parseInt(process.env.MAX_UPLOAD_MB || "25");
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+
+// ── AI Chat via Google Gemini ──
+async function askGemini(question) {
+  return new Promise((resolve) => {
+    const apiKey = GEMINI_API_KEY;
+    if (!apiKey) return resolve('❌ لم يتم تكوين مفتاح Gemini API. أضف `GEMINI_API_KEY` في متغيرات البيئة.');
+    const body = JSON.stringify({ contents: [{ parts: [{ text: `أنت مساعد ذكي ومفيد اسمك Rilina. أجب باللغة العربية أو الإنجليزية حسب السؤال بشكل واضح ومختصر.\n\nالسؤال: ${question}` }] }] });
+    const req = https.request({
+      hostname: 'generativelanguage.googleapis.com',
+      path: `/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
+    }, (res) => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+          resolve(text || '⚠️ لم أتمكن من الحصول على رد. حاول مرة أخرى.');
+        } catch (e) { resolve('❌ خطأ في معالجة رد الذكاء الاصطناعي.'); }
+      });
+    });
+    req.on('error', () => resolve('❌ فشل الاتصال بخادم Gemini AI.'));
+    req.setTimeout(15000, () => { req.destroy(); resolve('⏱️ انتهت مهلة الرد. حاول مرة أخرى.'); });
+    req.write(body);
+    req.end();
+  });
+}
+
+// ── Send DM error alert to owner ──
+async function notifyOwnerError(errorMsg, source = 'Bot Error') {
+  try {
+    const owner = await client.users.fetch(OWNER_ID);
+    if (!owner) return;
+    await owner.send({ embeds: [
+      new EmbedBuilder()
+        .setColor(0xFF0000)
+        .setTitle('⚠️ تنبيه خطأ في البوت | Bot Error Alert')
+        .setDescription(`**المصدر:** \`${source}\`\n\n\`\`\`\n${String(errorMsg).slice(0, 1800)}\n\`\`\``)
+        .setTimestamp()
+        .setFooter({ text: 'Rilina Suite — Error Monitor 🔴' })
+    ]});
+  } catch(e) { console.error('Could not DM owner error:', e.message); }
+}
 
 // ── EXPANDED ANIME GIF ENGINE ──
 const ANIME_GIF_FALLBACKS = {
@@ -485,6 +531,26 @@ function createHelpEmbed(category, user, client) {
     .setTitle(`${EMOJIS.PINK_VERIFIED} قسم المالك | Owner System`)
     .setDescription(`> 👑 **المالك الرسمية:** <@${OWNER_ID}>\n> ✨ حصانة كاملة واستجابة خاصة بالبطاقة والـ GIF عند المنشن.`);
 
+  if (category === 'ai') return base
+    .setTitle(`🤖 الذكاء الاصطناعي | Rilina AI — Gemini 2.0`)
+    .setDescription(
+      `\`\`\`\n❀ Rilina AI — مدعوم بـ Google Gemini 2.0 Flash ❀\n\`\`\`` +
+      `\n**╔══════ 🧠 كيفية الاستخدام ══════╗**\n` +
+      `> 💬 \`${PREFIX}ai <سؤالك>\` ➜ اسأل الذكاء الاصطناعي\n` +
+      `> 🗣️ \`@Rilina <سؤالك>\` ➜ منشن البوت مباشرة\n` +
+      `> 🌐 \`${PREFIX}ask <question>\` ➜ Ask in any language\n` +
+      `**╚══════════════════════════╝**\n\n` +
+      `**╔══════ ✨ أمثلة ══════╗**\n` +
+      `> \`${PREFIX}ai ما هو الذكاء الاصطناعي؟\`\n` +
+      `> \`${PREFIX}ai اكتب لي قصيدة عن الأنمي\`\n` +
+      `> \`${PREFIX}ai explain quantum physics\`\n` +
+      `> \`@Rilina كيف حالك؟\`\n` +
+      `**╚══════════════════════════╝**\n\n` +
+      `> 🌟 **النموذج:** Google Gemini 2.0 Flash\n` +
+      `> ⚡ **السرعة:** ردود فورية\n` +
+      `> 🌍 **اللغات:** عربي, English, وأكثر!`
+    );
+
   return base;
 }
 
@@ -500,9 +566,47 @@ client.once('clientReady', async () => {
   await ensureYtDlp();
 
   client.user.setPresence({
-    activities: [{ name: `${PREFIX}help | Live Voice & Downloads 📥`, type: ActivityType.Streaming, url: 'https://www.twitch.tv/discord' }],
+    activities: [{ name: `${PREFIX}help | AI Chat & Music 🎵`, type: ActivityType.Streaming, url: 'https://www.twitch.tv/discord' }],
     status: 'online'
   });
+});
+
+// ── Global Error Handlers → DM Owner ──
+process.on('unhandledRejection', async (reason) => {
+  console.error('Unhandled Rejection:', reason);
+  await notifyOwnerError(reason?.stack || reason, 'unhandledRejection');
+});
+process.on('uncaughtException', async (err) => {
+  console.error('Uncaught Exception:', err);
+  await notifyOwnerError(err?.stack || err.message, 'uncaughtException');
+});
+
+// ══════════════════════════════════════════
+// ── WELCOME DM ON NEW MEMBER JOIN ──
+// ══════════════════════════════════════════
+client.on('guildMemberAdd', async (member) => {
+  try {
+    const welcomeEmbed = new EmbedBuilder()
+      .setColor(0xFF69B4)
+      .setAuthor({ name: `${member.guild.name} 🌸`, iconURL: member.guild.iconURL({ dynamic: true }) })
+      .setTitle(`✨ أهلاً وسهلاً بك ${member.user.username}! ✨`)
+      .setDescription(
+        `> 🎉 **مرحباً بك في سيرفر** **${member.guild.name}**!\n\n` +
+        `> ${EMOJIS.PINK_BUTTERFLY} نحن سعداء جداً بانضمامك إلينا 💖\n` +
+        `> ${EMOJIS.PINK_BUTTERFLY} اكتب \`${PREFIX}help\` لمعرفة جميع الأوامر\n` +
+        `> ${EMOJIS.PINK_BUTTERFLY} اكتب \`${PREFIX}ai <سؤالك>\` للتحدث مع الذكاء الاصطناعي\n\n` +
+        `\`\`\`\n❀ Rilina Suite — يسعدنا تواجدك معنا ❀\n\`\`\``
+      )
+      .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 512 }))
+      .setImage('https://media.giphy.com/media/l3q2zVr6cu95nF6O4/giphy.gif')
+      .setFooter({ text: `${member.guild.name} • مرحباً بك في العائلة 💕` })
+      .setTimestamp();
+
+    await member.send({ embeds: [welcomeEmbed] });
+    console.log(`✅ Welcome DM sent to ${member.user.tag}`);
+  } catch (e) {
+    console.log(`⚠️ Could not DM welcome to ${member.user.tag}:`, e.message);
+  }
 });
 
 // ── Select Menu Interaction ──
@@ -525,6 +629,23 @@ client.on('messageCreate', async (message) => {
   // Owner mention reply
   if (message.mentions.users.has(OWNER_ID) || message.content.includes(`<@${OWNER_ID}>`) || message.content.includes(`<@!${OWNER_ID}>`)) {
     try { await message.reply({ embeds: [new EmbedBuilder().setColor(0xFF69B4).setDescription(`${EMOJIS.PINK_VERIFIED} **تاج الرأس والمالك | Bot Owner:** <@${OWNER_ID}>`).setImage(GIF_URL)] }); } catch(e) {}
+  }
+
+  // ── AI Chat via Bot Mention ──
+  const botMentioned = message.mentions.has(client.user) && !message.mentions.users.has(OWNER_ID);
+  if (botMentioned) {
+    const question = message.content.replace(/<@!?\d+>/g, '').trim();
+    if (question.length > 0) {
+      const typing = await message.channel.sendTyping().catch(() => {});
+      const aiReply = await askGemini(question);
+      const aiEmbed = new EmbedBuilder()
+        .setColor(0x9B59B6)
+        .setAuthor({ name: `Rilina AI 🤖✨`, iconURL: client.user.displayAvatarURL() })
+        .setDescription(aiReply.slice(0, 4000))
+        .setFooter({ text: `سألك: ${message.author.username} • Gemini AI 🌟`, iconURL: message.author.displayAvatarURL() })
+        .setTimestamp();
+      return message.reply({ embeds: [aiEmbed] });
+    }
   }
 
   // Anti-spam & Protection logic
@@ -575,6 +696,7 @@ client.on('messageCreate', async (message) => {
         { label: '📥 تحميل الفيديوهات | Media Downloader', value: 'download', emoji: '📥' },
         { label: 'البروفايل | Profile Bio', value: 'bio', emoji: '🌸' },
         { label: 'الأوامر الإدارية | Moderation', value: 'moderation', emoji: '🔨' },
+        { label: 'الذكاء الاصطناعي | AI Chat', value: 'ai', emoji: '🤖' },
         { label: 'معلومات المالك | Owner System', value: 'owner', emoji: '👑' }
       ]);
     return message.reply({ embeds: [createHelpEmbed('main', message.author, client)], components: [new ActionRowBuilder().addComponents(selectMenu)] });
@@ -1132,6 +1254,43 @@ client.on('messageCreate', async (message) => {
     if (!message.member.permissions.has(PermissionsBitField.Flags.ManageMessages) && !isOwner) return;
     const amount = parseInt(args[0]) || 10;
     await message.channel.bulkDelete(Math.min(amount + 1, 100), true);
+    return;
+  }
+
+  // ══════════════════════════════════════════
+  // ── AI COMMAND: !ai <question> ──
+  // ══════════════════════════════════════════
+  if (['ai', 'ذكاء', 'سؤال', 'ask'].includes(command)) {
+    const question = args.join(' ');
+    if (!question) {
+      return message.reply({ embeds: [
+        new EmbedBuilder()
+          .setColor(0x9B59B6)
+          .setTitle('🤖 Rilina AI — الذكاء الاصطناعي')
+          .setDescription(
+            `> اكتب سؤالك بعد الأمر:\n` +
+            `> \`${PREFIX}ai ما هو الذكاء الاصطناعي?\`\n\n` +
+            `> أو قم بمنشن البوت مباشرة مع سؤالك!\n` +
+            `> **مثال:** \`@Rilina ما هو الطقس اليوم?\``
+          )
+          .setFooter({ text: 'مدعوم بـ Google Gemini 2.0 Flash ✨' })
+      ]});
+    }
+    await message.channel.sendTyping();
+    const aiResponse = await askGemini(question);
+    const chunks = [];
+    for (let i = 0; i < aiResponse.length; i += 3900) chunks.push(aiResponse.slice(i, i + 3900));
+    for (let i = 0; i < Math.min(chunks.length, 3); i++) {
+      const aiEmbed = new EmbedBuilder()
+        .setColor(0x9B59B6)
+        .setAuthor({ name: `Rilina AI 🤖✨`, iconURL: client.user.displayAvatarURL() })
+        .setTitle(i === 0 ? `💬 ${question.slice(0, 100)}` : null)
+        .setDescription(chunks[i])
+        .setFooter({ text: `سألك: ${message.author.username} • مدعوم بـ Gemini 2.0 Flash 🌟`, iconURL: message.author.displayAvatarURL() })
+        .setTimestamp();
+      await message.reply({ embeds: [aiEmbed] });
+    }
+    return;
   }
 });
 
