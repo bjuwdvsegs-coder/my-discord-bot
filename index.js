@@ -130,33 +130,100 @@ function createYtDlpStream(youtubeUrl, binaryPath) {
 }
 
 // ══════════════════════════════════════════
-// ── Video Downloader (YouTube, Instagram, TikTok, etc.) ──
+// ── Pure Node HTTP Fallback Downloader (Cobalt API) ──
+// Works even if Python is missing on the server!
+// ══════════════════════════════════════════
+function downloadViaCobalt(mediaUrl, outputPath) {
+  return new Promise((resolve, reject) => {
+    const postData = JSON.stringify({ url: mediaUrl });
+    const req = https.request('https://api.cobalt.tools/api/json', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+      },
+      timeout: 15000
+    }, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          const downloadUrl = json.url;
+          if (!downloadUrl) return reject(new Error('Cobalt returned no URL'));
+
+          const fileStream = fs.createWriteStream(outputPath);
+          const dlProtocol = downloadUrl.startsWith('https') ? https : http;
+          
+          const dlReq = dlProtocol.get(downloadUrl, (dlRes) => {
+            if (dlRes.statusCode >= 300 && dlRes.statusCode < 400 && dlRes.headers.location) {
+              const redirectUrl = dlRes.headers.location;
+              const redProtocol = redirectUrl.startsWith('https') ? https : http;
+              redProtocol.get(redirectUrl, (redRes) => {
+                redRes.pipe(fileStream);
+                fileStream.on('finish', () => { fileStream.close(); resolve(); });
+              }).on('error', reject);
+            } else {
+              dlRes.pipe(fileStream);
+              fileStream.on('finish', () => { fileStream.close(); resolve(); });
+            }
+          });
+          dlReq.on('error', reject);
+        } catch (e) {
+          reject(e);
+        }
+      });
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('Cobalt timeout')); });
+    req.write(postData);
+    req.end();
+  });
+}
+
+// ══════════════════════════════════════════
+// ── Robust Media Downloader (yt-dlp with Cobalt fallback) ──
 // ══════════════════════════════════════════
 async function downloadVideo(url, outputPath) {
-  const binaryPath = await ensureYtDlp();
-  return new Promise((resolve, reject) => {
-    const args = [
-      '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
-      '--merge-output-format', 'mp4',
-      '--no-playlist',
-      '-q',
-      '--no-warnings',
-      '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-      '-o', outputPath,
-      url
-    ];
-    if (FFMPEG_PATH && FFMPEG_PATH !== 'ffmpeg') {
-      args.unshift('--ffmpeg-location', path.dirname(FFMPEG_PATH));
-    }
-    const proc = spawn(binaryPath, args);
-    let errOut = '';
-    proc.stderr.on('data', d => { errOut += d.toString(); });
-    proc.on('close', code => {
-      if (code === 0) resolve();
-      else reject(new Error(errOut.slice(0, 300) || `yt-dlp exited with code ${code}`));
+  // First attempt: yt-dlp
+  try {
+    const binaryPath = await ensureYtDlp();
+    await new Promise((resolve, reject) => {
+      const args = [
+        '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+        '--merge-output-format', 'mp4',
+        '--no-playlist',
+        '-q',
+        '--no-warnings',
+        '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        '-o', outputPath,
+        url
+      ];
+      if (FFMPEG_PATH && FFMPEG_PATH !== 'ffmpeg') {
+        args.unshift('--ffmpeg-location', path.dirname(FFMPEG_PATH));
+      }
+      const proc = spawn(binaryPath, args);
+      let errOut = '';
+      proc.stderr.on('data', d => { errOut += d.toString(); });
+      proc.on('close', code => {
+        if (code === 0 && fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0) resolve();
+        else reject(new Error(errOut.slice(0, 300) || `yt-dlp exited with code ${code}`));
+      });
+      proc.on('error', e => reject(e));
     });
-    proc.on('error', e => reject(new Error(`Failed to run yt-dlp binary (${binaryPath}): ${e.message}`)));
-  });
+    return;
+  } catch (ytdlpErr) {
+    console.log('⚠️ yt-dlp download failed, attempting Cobalt API fallback:', ytdlpErr.message);
+    // Second attempt: Cobalt API (Pure JS, no Python needed)
+    try {
+      await downloadViaCobalt(url, outputPath);
+      if (fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0) return;
+    } catch (cobaltErr) {
+      console.log('⚠️ Cobalt API fallback failed:', cobaltErr.message);
+    }
+    throw ytdlpErr;
+  }
 }
 
 // Helper to generate direct download page link (YouTubePP / Y2Mate)
@@ -227,7 +294,7 @@ const GIF_URL = process.env.GIF_URL || "https://i.pinimg.com/originals/f2/eb/01/
 const DEFAULT_TIMEOUT_MIN = parseInt(process.env.DEFAULT_TIMEOUT_MINUTES || "5");
 const MAX_UPLOAD_MB = parseInt(process.env.MAX_UPLOAD_MB || "25");
 
-// ── EXPANDED ANIME GIF ENGINE (35+ Reactions with Premium CDN Links) ──
+// ── EXPANDED ANIME GIF ENGINE (35+ Reactions) ──
 const ANIME_GIF_FALLBACKS = {
   hug:       ['https://cdn.otakugifs.xyz/gifs/hug/df0840a507aa481a.gif','https://cdn.otakugifs.xyz/gifs/hug/6d915e537c818fa9.gif','https://i.giphy.com/media/l2QDM9Jnim1YV55YA/giphy.gif'],
   kiss:      ['https://cdn.otakugifs.xyz/gifs/kiss/e8620e4b5d4907df.gif','https://i.giphy.com/media/G3va31oEEnIkM/giphy.gif'],
@@ -296,7 +363,7 @@ const LINK_REGEX = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|(discord\.(gg|io|me|li)\/[
 const IMAGE_EXT_REGEX = /\.(png|jpe?g|gif|webp|bmp|svg)(\?.*)?$/i;
 
 // ══════════════════════════════════════════
-// ── HELP EMBED (HIGH AESTHETICS & LUXURY DESIGN) ──
+// ── HELP EMBED ──
 // ══════════════════════════════════════════
 function createHelpEmbed(category, user, client) {
   const base = new EmbedBuilder()
@@ -650,7 +717,7 @@ client.on('messageCreate', async (message) => {
   }
 
   // ══════════════════════════════════════════
-  // ── 📥 DOWNLOAD COMMAND (IMPROVED DIRECT LINK) ──
+  // ── 📥 DOWNLOAD COMMAND (IMPROVED DIRECT LINK + COBALT FALLBACK) ──
   // ══════════════════════════════════════════
   if (['download', 'dl', 'تحميل'].includes(command)) {
     const url = args[0];
@@ -961,7 +1028,7 @@ client.on('messageCreate', async (message) => {
   }
 
   // ══════════════════════════════════════════
-  // ── ANIME GIF COMMANDS (BEAUTIFUL HIGH AESTHETIC DESIGN) ──
+  // ── ANIME GIF COMMANDS ──
   // ══════════════════════════════════════════
   const ANIME_COMMANDS = [
     'hug','kiss','pat','slap','cuddle','poke','punch','bite','lick','highfive',
