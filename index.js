@@ -76,7 +76,6 @@ async function ensureYtDlp() {
 
 // ══════════════════════════════════════════
 // ── Audio Stream via yt-dlp + ffmpeg ──
-// Bypasses YouTube bot checks without relying on play-dl
 // ══════════════════════════════════════════
 function createYtDlpStream(youtubeUrl, binaryPath) {
   const ytdlpArgs = [
@@ -307,7 +306,9 @@ function createHelpEmbed(category, user, client) {
     .setDescription(
       `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}antilink <on/off>\` ➔ حماية الروابط\n` +
       `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}antiimage <on/off>\` ➔ حماية الصور\n` +
-      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}antifile <on/off>\` ➔ حماية الملفات`
+      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}antifile <on/off>\` ➔ حماية الملفات\n` +
+      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}protection\` ➔ عرض حالة جميع أنظمة الحماية\n` +
+      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}settimeout <دقائق>\` ➔ تحديد مدة التايم أوت`
     );
   if (category === 'images') return base
     .setTitle(`${EMOJIS.SHARK_HUG} تأثيرات الصور | Image Magic`)
@@ -348,6 +349,7 @@ function createHelpEmbed(category, user, client) {
     .setTitle(`${EMOJIS.STAFF_DISCORD} الأوامر الإدارية | Moderation`)
     .setDescription(
       `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}timeout <@user> <دقائق>\` ➔ تايم أوت\n` +
+      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}untimeout <@user>\` ➔ فك التايم أوت\n` +
       `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}kick / ban <@user>\` ➔ طرد أو حظر\n` +
       `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}clear <1-100>\` ➔ مسح الرسائل`
     );
@@ -369,7 +371,7 @@ client.once('clientReady', async () => {
   await ensureYtDlp();
 
   client.user.setPresence({
-    activities: [{ name: `${PREFIX}help | Music & Download 📥`, type: ActivityType.Streaming, url: 'https://www.twitch.tv/discord' }],
+    activities: [{ name: `${PREFIX}help | Music & Protection 🛡️`, type: ActivityType.Streaming, url: 'https://www.twitch.tv/discord' }],
     status: 'online'
   });
 });
@@ -396,7 +398,7 @@ client.on('messageCreate', async (message) => {
     try { await message.reply({ embeds: [new EmbedBuilder().setColor(0xFF69B4).setDescription(`${EMOJIS.PINK_VERIFIED} **تاج الرأس والمالك | Bot Owner:** <@${OWNER_ID}>`).setImage(GIF_URL)] }); } catch(e) {}
   }
 
-  // Anti-spam & Protection
+  // Anti-spam & Protection logic
   if (!isOwner) {
     const hasAdmin = message.member?.permissions.has(PermissionsBitField.Flags.Administrator);
     if (!hasAdmin) {
@@ -428,6 +430,7 @@ client.on('messageCreate', async (message) => {
 
   const getTargetMember = () => message.mentions.members.first() || message.guild.members.cache.get(args[0]) || message.member;
   const getTargetUser = () => message.mentions.users.first() || client.users.cache.get(args[0]) || message.author;
+  const isAdmin = message.member?.permissions.has(PermissionsBitField.Flags.Administrator) || isOwner;
 
   // ── HELP ──
   if (['help', 'مساعدة', 'الأوامر'].includes(command)) {
@@ -446,6 +449,177 @@ client.on('messageCreate', async (message) => {
         { label: 'معلومات المالك | Owner System', value: 'owner', emoji: '👑' }
       ]);
     return message.reply({ embeds: [createHelpEmbed('main', message.author, client)], components: [new ActionRowBuilder().addComponents(selectMenu)] });
+  }
+
+  // ══════════════════════════════════════════
+  // ── 🛡️ PROTECTION CONTROL COMMANDS ──
+  // ══════════════════════════════════════════
+  if (['antilink', 'antiimage', 'antifile', 'protection', 'حماية', 'settimeout'].includes(command)) {
+    if (!isAdmin) {
+      return message.reply({ embeds: [new EmbedBuilder().setColor(0xFF0000).setDescription(`❌ هـذا الأمر مخصص للإداريين والمالك فقط!`)] });
+    }
+
+    const sub = args[0] ? args[0].toLowerCase() : '';
+
+    if (command === 'antilink') {
+      if (['on', 'enable', 'تفعيل', '1'].includes(sub)) {
+        config.antiLink = true;
+      } else if (['off', 'disable', 'تعطيل', '0'].includes(sub)) {
+        config.antiLink = false;
+      } else {
+        config.antiLink = !config.antiLink; // toggle if no arg
+      }
+      return message.reply({ embeds: [new EmbedBuilder()
+        .setColor(config.antiLink ? 0x00FF00 : 0xFF0000)
+        .setTitle(`${EMOJIS.SHINOBU_GUN} حماية الروابط | Anti-Link`)
+        .setDescription(`> 🛡️ **حالة حماية الروابط:** ${config.antiLink ? '✅ **مفعلة (ON)**' : '❌ **معطلة (OFF)**'}`)
+      ]});
+    }
+
+    if (command === 'antiimage') {
+      if (['on', 'enable', 'تفعيل', '1'].includes(sub)) {
+        config.antiImage = true;
+      } else if (['off', 'disable', 'تعطيل', '0'].includes(sub)) {
+        config.antiImage = false;
+      } else {
+        config.antiImage = !config.antiImage;
+      }
+      return message.reply({ embeds: [new EmbedBuilder()
+        .setColor(config.antiImage ? 0x00FF00 : 0xFF0000)
+        .setTitle(`${EMOJIS.SHINOBU_GUN} حماية الصور | Anti-Image`)
+        .setDescription(`> 🎨 **حالة حماية الصور:** ${config.antiImage ? '✅ **مفعلة (ON)**' : '❌ **معطلة (OFF)**'}`)
+      ]});
+    }
+
+    if (command === 'antifile') {
+      if (['on', 'enable', 'تفعيل', '1'].includes(sub)) {
+        config.antiFile = true;
+      } else if (['off', 'disable', 'تعطيل', '0'].includes(sub)) {
+        config.antiFile = false;
+      } else {
+        config.antiFile = !config.antiFile;
+      }
+      return message.reply({ embeds: [new EmbedBuilder()
+        .setColor(config.antiFile ? 0x00FF00 : 0xFF0000)
+        .setTitle(`${EMOJIS.SHINOBU_GUN} حماية الملفات | Anti-File`)
+        .setDescription(`> 📁 **حالة حماية الملفات:** ${config.antiFile ? '✅ **مفعلة (ON)**' : '❌ **معطلة (OFF)**'}`)
+      ]});
+    }
+
+    if (command === 'settimeout') {
+      const minutes = parseInt(args[0]);
+      if (isNaN(minutes) || minutes < 1 || minutes > 1440) {
+        return message.reply(`❌ يرجى كتابة عدد دقائق صحيح من 1 إلى 1440 (مثال: \`${PREFIX}settimeout 10\`)`);
+      }
+      config.timeoutMinutes = minutes;
+      return message.reply({ embeds: [new EmbedBuilder()
+        .setColor(0x00FF00)
+        .setTitle(`⏱️ تحديث مدة التايم أوت`)
+        .setDescription(`> ✅ تم تحديد مدة التايم أوت لـ: **${minutes} دقائق**`)
+      ]});
+    }
+
+    if (command === 'protection' || command === 'حماية') {
+      return message.reply({ embeds: [new EmbedBuilder()
+        .setColor(0xFF1493)
+        .setTitle(`${EMOJIS.SHINOBU_GUN} لوحة حالة الحماية | Server Protection Status`)
+        .setDescription(
+          `> 🔗 **حماية الروابط (Anti-Link):** ${config.antiLink ? '✅ **مفعلة**' : '❌ **معطلة**'}\n` +
+          `> 🎨 **حماية الصور (Anti-Image):** ${config.antiImage ? '✅ **مفعلة**' : '❌ **معطلة**'}\n` +
+          `> 📁 **حماية الملفات (Anti-File):** ${config.antiFile ? '✅ **مفعلة**' : '❌ **معطلة**'}\n` +
+          `> ⏱️ **مدة التايم أوت:** **${config.timeoutMinutes} دقائق**`
+        )
+      ]});
+    }
+  }
+
+  // ══════════════════════════════════════════
+  // ── 🔨 MODERATION COMMANDS ──
+  // ══════════════════════════════════════════
+  if (['timeout', 'untimeout', 'kick', 'ban'].includes(command)) {
+    if (!isAdmin) return message.reply(`❌ هـذا الأمر مخصص للإداريين فقط.`);
+
+    const targetMember = getTargetMember();
+    if (!targetMember || targetMember.id === message.author.id) {
+      return message.reply(`❌ يرجى منشن العضو المراد تطبيق الأمر عليه.`);
+    }
+
+    if (targetMember.id === OWNER_ID) {
+      return message.reply(`👑 لا يمكنك استخدام الأوامر الإدارية ضد مالك البوت!`);
+    }
+
+    if (command === 'timeout') {
+      const minutes = parseInt(args[1]) || config.timeoutMinutes;
+      const reason = args.slice(2).join(' ') || 'بدون سبب';
+      try {
+        await targetMember.timeout(minutes * 60 * 1000, reason);
+        return message.reply({ embeds: [new EmbedBuilder().setColor(0xFF0000).setDescription(`🛑 **تم إعطاء تايم أوت لـ <@${targetMember.id}> لمدة ${minutes} دقائق.**\nالسبب: ${reason}`)] });
+      } catch(e) { return message.reply(`❌ فشل إعطاء تايم أوت: ${e.message}`); }
+    }
+
+    if (command === 'untimeout') {
+      try {
+        await targetMember.timeout(null);
+        return message.reply({ embeds: [new EmbedBuilder().setColor(0x00FF00).setDescription(`✅ **تم فك التايم أوت عن <@${targetMember.id}>.**`)] });
+      } catch(e) { return message.reply(`❌ فشل فك التايم أوت: ${e.message}`); }
+    }
+
+    if (command === 'kick') {
+      const reason = args.slice(1).join(' ') || 'بدون سبب';
+      try {
+        await targetMember.kick(reason);
+        return message.reply({ embeds: [new EmbedBuilder().setColor(0xFF0000).setDescription(`👢 **تم طرد <@${targetMember.id}> من السيرفر.**\nالسبب: ${reason}`)] });
+      } catch(e) { return message.reply(`❌ فشل طرد العضو: ${e.message}`); }
+    }
+
+    if (command === 'ban') {
+      const reason = args.slice(1).join(' ') || 'بدون سبب';
+      try {
+        await targetMember.ban({ reason });
+        return message.reply({ embeds: [new EmbedBuilder().setColor(0xFF0000).setDescription(`🔨 **تم حظر <@${targetMember.id}> من السيرفر نهائياً.**\nالسبب: ${reason}`)] });
+      } catch(e) { return message.reply(`❌ فشل حظر العضو: ${e.message}`); }
+    }
+  }
+
+  // ══════════════════════════════════════════
+  // ── 🖼️ IMAGE & AVATAR COMMANDS ──
+  // ══════════════════════════════════════════
+  if (['avatar', 'banner', 'wanted'].includes(command)) {
+    const targetUser = getTargetUser();
+
+    if (command === 'avatar') {
+      const avatarUrl = targetUser.displayAvatarURL({ dynamic: true, size: 1024 });
+      return message.reply({ embeds: [new EmbedBuilder()
+        .setColor(0xFF1493)
+        .setTitle(`🖼️ افتار العضو: ${targetUser.username}`)
+        .setImage(avatarUrl)
+        .setDescription(`**[رابط الصورة المباشر](${avatarUrl})**`)
+      ]});
+    }
+
+    if (command === 'banner') {
+      try {
+        const fetchedUser = await client.users.fetch(targetUser.id, { force: true });
+        const bannerUrl = fetchedUser.bannerURL({ dynamic: true, size: 1024 });
+        if (!bannerUrl) return message.reply(`❌ العضو لا يملك بنر مخصص.`);
+        return message.reply({ embeds: [new EmbedBuilder()
+          .setColor(0xFF1493)
+          .setTitle(`🎨 بنر العضو: ${targetUser.username}`)
+          .setImage(bannerUrl)
+          .setDescription(`**[رابط البنر المباشر](${bannerUrl})**`)
+        ]});
+      } catch(e) { return message.reply(`❌ تعذر جلب بنر العضو.`); }
+    }
+
+    if (command === 'wanted') {
+      const avatarUrl = targetUser.displayAvatarURL({ extension: 'png', size: 512 });
+      return message.reply({ embeds: [new EmbedBuilder()
+        .setColor(0x8B4513)
+        .setTitle(`🤠 WANTED DEAD OR ALIVE`)
+        .setDescription(`> 💰 **المكافأة:** $1,000,000\n> 👤 **المطلوب:** <@${targetUser.id}>`)
+        .setThumbnail(avatarUrl)
+      ]});
+    }
   }
 
   // ══════════════════════════════════════════
