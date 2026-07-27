@@ -1,3 +1,5 @@
 node_modules/
 .env
 *.log
+*-player-script.js
+yt-dlp.exe
