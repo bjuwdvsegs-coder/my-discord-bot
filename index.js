@@ -159,6 +159,18 @@ async function downloadVideo(url, outputPath) {
   });
 }
 
+// Helper to generate direct download page link (YouTubePP / Y2Mate)
+function getDirectDownloadLink(ytUrl) {
+  if (!ytUrl) return 'https://y2mate.com';
+  if (ytUrl.includes('youtube.com/watch?v=')) {
+    return ytUrl.replace('youtube.com/watch?v=', 'youtubepp.com/watch?v=');
+  }
+  if (ytUrl.includes('youtu.be/')) {
+    return ytUrl.replace('youtu.be/', 'youtubepp.com/watch?v=');
+  }
+  return ytUrl;
+}
+
 // ══════════════════════════════════════════
 // ── Optional Spotify & Voice packages ──
 // ══════════════════════════════════════════
@@ -215,14 +227,14 @@ const GIF_URL = process.env.GIF_URL || "https://i.pinimg.com/originals/f2/eb/01/
 const DEFAULT_TIMEOUT_MIN = parseInt(process.env.DEFAULT_TIMEOUT_MINUTES || "5");
 const MAX_UPLOAD_MB = parseInt(process.env.MAX_UPLOAD_MB || "25");
 
-// ── Anime GIF Engine ──
+// ── EXPANDED ANIME GIF ENGINE (35+ Reactions with Premium CDN Links) ──
 const ANIME_GIF_FALLBACKS = {
-  hug:       ['https://cdn.otakugifs.xyz/gifs/hug/df0840a507aa481a.gif','https://cdn.otakugifs.xyz/gifs/hug/6d915e537c818fa9.gif'],
-  kiss:      ['https://cdn.otakugifs.xyz/gifs/kiss/e8620e4b5d4907df.gif'],
-  pat:       ['https://cdn.otakugifs.xyz/gifs/pat/13ec930fd42770f6.gif'],
-  slap:      ['https://cdn.otakugifs.xyz/gifs/slap/728770007827600b.gif'],
+  hug:       ['https://cdn.otakugifs.xyz/gifs/hug/df0840a507aa481a.gif','https://cdn.otakugifs.xyz/gifs/hug/6d915e537c818fa9.gif','https://i.giphy.com/media/l2QDM9Jnim1YV55YA/giphy.gif'],
+  kiss:      ['https://cdn.otakugifs.xyz/gifs/kiss/e8620e4b5d4907df.gif','https://i.giphy.com/media/G3va31oEEnIkM/giphy.gif'],
+  pat:       ['https://cdn.otakugifs.xyz/gifs/pat/13ec930fd42770f6.gif','https://i.giphy.com/media/5tmRHw4oHw8CH0qxYi/giphy.gif'],
+  slap:      ['https://cdn.otakugifs.xyz/gifs/slap/728770007827600b.gif','https://i.giphy.com/media/Gf3AUz3eBNbTW/giphy.gif'],
   cuddle:    ['https://cdn.otakugifs.xyz/gifs/cuddle/7dca23f6128a1897.gif'],
-  dance:     ['https://cdn.otakugifs.xyz/gifs/dance/0fd2b6003eb5dad1.gif'],
+  dance:     ['https://cdn.otakugifs.xyz/gifs/dance/0fd2b6003eb5dad1.gif','https://i.giphy.com/media/13l7L7N4tVY5wA/giphy.gif'],
   cry:       ['https://cdn.otakugifs.xyz/gifs/cry/c97b378c7184ea59.gif'],
   blush:     ['https://cdn.otakugifs.xyz/gifs/blush/rh8KXQBMWBka.gif'],
   happy:     ['https://cdn.otakugifs.xyz/gifs/happy/vhplowmpdJ.gif'],
@@ -284,7 +296,7 @@ const LINK_REGEX = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|(discord\.(gg|io|me|li)\/[
 const IMAGE_EXT_REGEX = /\.(png|jpe?g|gif|webp|bmp|svg)(\?.*)?$/i;
 
 // ══════════════════════════════════════════
-// ── HELP EMBED ──
+// ── HELP EMBED (HIGH AESTHETICS & LUXURY DESIGN) ──
 // ══════════════════════════════════════════
 function createHelpEmbed(category, user, client) {
   const base = new EmbedBuilder()
@@ -301,61 +313,85 @@ function createHelpEmbed(category, user, client) {
       `> ⚡ **البادئة:** \`${PREFIX}\`\n> 👑 **المالك:** <@${OWNER_ID}>\n> 📺 **الحالة:** \`Stream & Voice 24/7\`\n\n` +
       `🌸 **اختر القسم المطلوب من القائمة المنسدلة أدناه:**`
     );
+
   if (category === 'protection') return base
-    .setTitle(`${EMOJIS.SHINOBU_GUN} أنظمة الحماية | Protection`)
+    .setTitle(`${EMOJIS.SHINOBU_GUN} أنظمة الحماية والتايم أوت | Server Protection`)
     .setDescription(
-      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}antilink <on/off>\` ➔ حماية الروابط\n` +
-      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}antiimage <on/off>\` ➔ حماية الصور\n` +
-      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}antifile <on/off>\` ➔ حماية الملفات\n` +
-      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}protection\` ➔ عرض حالة جميع أنظمة الحماية\n` +
-      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}settimeout <دقائق>\` ➔ تحديد مدة التايم أوت`
+      `### 🛡️ الأوامر الإدارية للحماية:\n` +
+      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}antilink on/off\` ➔ حماية الروابط تلقائياً\n` +
+      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}antiimage on/off\` ➔ حماية الصور والصور المتحركة\n` +
+      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}antifile on/off\` ➔ حماية الملفات المرفقة\n` +
+      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}protection\` ➔ عرض لوحة حالة جميع أنظمة الحماية\n` +
+      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}settimeout <دقائق>\` ➔ تحديد مدة التايم أوت للمخالفين`
     );
+
   if (category === 'images') return base
-    .setTitle(`${EMOJIS.SHARK_HUG} تأثيرات الصور | Image Magic`)
+    .setTitle(`${EMOJIS.SHARK_HUG} تأثيرات وصور البروفايل | Image Magic`)
     .setDescription(
-      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}avatar [@user]\` ➔ عرض الافتار\n` +
-      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}banner [@user]\` ➔ عرض البنر\n` +
-      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}wanted [@user]\` ➔ ملصق مطلوب`
+      `### 🎨 أداة الصور والاستخراج:\n` +
+      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}avatar [@user]\` ➔ عرض وتنزيل افتار العضو بصيغة عالية\n` +
+      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}banner [@user]\` ➔ عرض وتنزيل بنر العضو\n` +
+      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}wanted [@user]\` ➔ تصميم ملصق مطلوب عالي الجودة`
     );
+
   if (category === 'anime') return base
-    .setTitle(`${EMOJIS.REM_DANCE} تفاعلات الأنمي | Anime Actions`)
+    .setTitle(`${EMOJIS.REM_DANCE} تفاعلات وصور الأنمي | Anime GIFs Suite`)
     .setDescription(
-      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}hug / kiss / pat / slap / cuddle / poke / punch\`\n` +
-      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}dance / cry / blush / happy / sleep / waifu\``
+      `### 🎭 تفاعلات الأعضاء (Member Interactions):\n` +
+      `> 💖 \`${PREFIX}hug\` · \`${PREFIX}kiss\` · \`${PREFIX}cuddle\` · \`${PREFIX}pat\` · \`${PREFIX}wink\`\n` +
+      `> 👊 \`${PREFIX}slap\` · \`${PREFIX}punch\` · \`${PREFIX}poke\` · \`${PREFIX}bite\` · \`${PREFIX}bonk\`\n` +
+      `> ⚔️ \`${PREFIX}kill\` · \`${PREFIX}shoot\` · \`${PREFIX}lick\` · \`${PREFIX}nom\` · \`${PREFIX}kick\`\n\n` +
+      `### 🌸 التفاعلات الشخصية والصور (Self Reactions):\n` +
+      `> 💃 \`${PREFIX}dance\` · \`${PREFIX}happy\` · \`${PREFIX}blush\` · \`${PREFIX}cry\` · \`${PREFIX}sleep\`\n` +
+      `> 😏 \`${PREFIX}smug\` · \`${PREFIX}bored\` · \`${PREFIX}think\` · \`${PREFIX}facepalm\` · \`${PREFIX}clap\`\n` +
+      `> 🖼️ \`${PREFIX}waifu\` · \`${PREFIX}neko\` · \`${PREFIX}thumbsup\` · \`${PREFIX}shrug\``
     );
+
   if (category === 'music') return base
-    .setTitle(`🎤 الروم الصوتي والموسيقى | Voice Channel`)
+    .setTitle(`🎤 الروم الصوتي والموسيقى | Live Voice Channel`)
     .setDescription(
-      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}join\` ➔ الانضمام للروم الصوتي\n` +
-      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}play <اسم أغنية / رابط YouTube / Spotify>\` ➔ تشغيل البث الصوتي\n` +
-      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}stop\` / \`${PREFIX}leave\` ➔ إيقاف ومغادرة الروم`
+      `### 🎵 مشغل الصوت الفائق:\n` +
+      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}join\` ➔ الانضمام للروم الصوتي في السيرفر\n` +
+      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}play <اسم الأغنية / رابط YouTube / Spotify>\` ➔ البث الصوتي الفوري\n` +
+      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}stop\` / \`${PREFIX}leave\` ➔ إيقاف ومغادرة الروم الصوتي`
     );
+
   if (category === 'download') return base
-    .setTitle(`📥 تحميل الفيديوهات | Media Downloader`)
+    .setTitle(`📥 تحميل الفيديوهات والصوتيات | Direct Downloader`)
     .setDescription(
+      `### ⏬ أداة التحميل المباشر:\n` +
       `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}download <رابط>\` أو \`${PREFIX}dl <رابط>\`\n\n` +
-      `> 🎬 **YouTube** (فيديوهات وShorts)\n` +
-      `> 📸 **Instagram** (ريلز، بوستات)\n` +
-      `> 🎵 **TikTok**\n` +
-      `> 🐦 **Twitter/X**`
+      `**📌 المنصات المدعومة بالكامل:**\n` +
+      `> 🎬 **YouTube** — فيديوهات عادية، أغاني، و Shorts\n` +
+      `> 📸 **Instagram** — ريلز (Reels)، بوستات، وستوري\n` +
+      `> 🎵 **TikTok** — فيديوهات بدون علامة مائية\n` +
+      `> 🐦 **Twitter / X** — مقاطع وتغريدات\n\n` +
+      `💡 *الملفات الأصغر من ${MAX_UPLOAD_MB}MB يتم رفعها مباشرة في الشات!*`
     );
+
   if (category === 'bio') return base
-    .setTitle(`${EMOJIS.PINK_VERIFIED} سيرة البروفايل | Profile Bio`)
+    .setTitle(`${EMOJIS.PINK_VERIFIED} سيرة البروفايل | Profile Bio Card`)
     .setDescription(
-      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}bio [@user]\` ➔ بطاقة البروفايل\n` +
-      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}botinfo\` ➔ معلومات البوت الرسمية`
+      `### 🌸 بطاقات البروفايل:\n` +
+      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}bio [@user]\` ➔ عرض بطاقة السيرة الذاتية والرتب\n` +
+      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}botinfo\` ➔ سرعة ومعلومات البوت الرسمية`
     );
+
   if (category === 'moderation') return base
-    .setTitle(`${EMOJIS.STAFF_DISCORD} الأوامر الإدارية | Moderation`)
+    .setTitle(`${EMOJIS.STAFF_DISCORD} الأوامر الإدارية | Moderation Suite`)
     .setDescription(
-      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}timeout <@user> <دقائق>\` ➔ تايم أوت\n` +
+      `### 🔨 التحكم والإشراف:\n` +
+      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}timeout <@user> <دقائق> [سبب]\` ➔ إعطاء تايم أوت\n` +
       `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}untimeout <@user>\` ➔ فك التايم أوت\n` +
-      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}kick / ban <@user>\` ➔ طرد أو حظر\n` +
-      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}clear <1-100>\` ➔ مسح الرسائل`
+      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}kick <@user> [سبب]\` ➔ طرد عضو من السيرفر\n` +
+      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}ban <@user> [سبب]\` ➔ حظر عضو نهائياً\n` +
+      `> ${EMOJIS.PINK_BUTTERFLY} \`${PREFIX}clear <1-100>\` ➔ مسح رسائل الشات`
     );
+
   if (category === 'owner') return base
     .setTitle(`${EMOJIS.PINK_VERIFIED} قسم المالك | Owner System`)
-    .setDescription(`> 👑 **المالك الرسمية:** <@${OWNER_ID}>\n> ✨ حصانة كاملة واستجابة خاصة عند المنشن.`);
+    .setDescription(`> 👑 **المالك الرسمية:** <@${OWNER_ID}>\n> ✨ حصانة كاملة واستجابة خاصة بالبطاقة والـ GIF عند المنشن.`);
+
   return base;
 }
 
@@ -371,7 +407,7 @@ client.once('clientReady', async () => {
   await ensureYtDlp();
 
   client.user.setPresence({
-    activities: [{ name: `${PREFIX}help | Music & Protection 🛡️`, type: ActivityType.Streaming, url: 'https://www.twitch.tv/discord' }],
+    activities: [{ name: `${PREFIX}help | Live Voice & Downloads 📥`, type: ActivityType.Streaming, url: 'https://www.twitch.tv/discord' }],
     status: 'online'
   });
 });
@@ -462,13 +498,10 @@ client.on('messageCreate', async (message) => {
     const sub = args[0] ? args[0].toLowerCase() : '';
 
     if (command === 'antilink') {
-      if (['on', 'enable', 'تفعيل', '1'].includes(sub)) {
-        config.antiLink = true;
-      } else if (['off', 'disable', 'تعطيل', '0'].includes(sub)) {
-        config.antiLink = false;
-      } else {
-        config.antiLink = !config.antiLink; // toggle if no arg
-      }
+      if (['on', 'enable', 'تفعيل', '1'].includes(sub)) config.antiLink = true;
+      else if (['off', 'disable', 'تعطيل', '0'].includes(sub)) config.antiLink = false;
+      else config.antiLink = !config.antiLink;
+
       return message.reply({ embeds: [new EmbedBuilder()
         .setColor(config.antiLink ? 0x00FF00 : 0xFF0000)
         .setTitle(`${EMOJIS.SHINOBU_GUN} حماية الروابط | Anti-Link`)
@@ -477,13 +510,10 @@ client.on('messageCreate', async (message) => {
     }
 
     if (command === 'antiimage') {
-      if (['on', 'enable', 'تفعيل', '1'].includes(sub)) {
-        config.antiImage = true;
-      } else if (['off', 'disable', 'تعطيل', '0'].includes(sub)) {
-        config.antiImage = false;
-      } else {
-        config.antiImage = !config.antiImage;
-      }
+      if (['on', 'enable', 'تفعيل', '1'].includes(sub)) config.antiImage = true;
+      else if (['off', 'disable', 'تعطيل', '0'].includes(sub)) config.antiImage = false;
+      else config.antiImage = !config.antiImage;
+
       return message.reply({ embeds: [new EmbedBuilder()
         .setColor(config.antiImage ? 0x00FF00 : 0xFF0000)
         .setTitle(`${EMOJIS.SHINOBU_GUN} حماية الصور | Anti-Image`)
@@ -492,13 +522,10 @@ client.on('messageCreate', async (message) => {
     }
 
     if (command === 'antifile') {
-      if (['on', 'enable', 'تفعيل', '1'].includes(sub)) {
-        config.antiFile = true;
-      } else if (['off', 'disable', 'تعطيل', '0'].includes(sub)) {
-        config.antiFile = false;
-      } else {
-        config.antiFile = !config.antiFile;
-      }
+      if (['on', 'enable', 'تفعيل', '1'].includes(sub)) config.antiFile = true;
+      else if (['off', 'disable', 'تعطيل', '0'].includes(sub)) config.antiFile = false;
+      else config.antiFile = !config.antiFile;
+
       return message.reply({ embeds: [new EmbedBuilder()
         .setColor(config.antiFile ? 0x00FF00 : 0xFF0000)
         .setTitle(`${EMOJIS.SHINOBU_GUN} حماية الملفات | Anti-File`)
@@ -582,7 +609,7 @@ client.on('messageCreate', async (message) => {
   }
 
   // ══════════════════════════════════════════
-  // ── 🖼️ IMAGE & AVATAR COMMANDS ──
+  // ── 🖼️ IMAGE COMMANDS ──
   // ══════════════════════════════════════════
   if (['avatar', 'banner', 'wanted'].includes(command)) {
     const targetUser = getTargetUser();
@@ -623,13 +650,13 @@ client.on('messageCreate', async (message) => {
   }
 
   // ══════════════════════════════════════════
-  // ── 📥 DOWNLOAD COMMAND ──
+  // ── 📥 DOWNLOAD COMMAND (IMPROVED DIRECT LINK) ──
   // ══════════════════════════════════════════
   if (['download', 'dl', 'تحميل'].includes(command)) {
     const url = args[0];
     if (!url || !url.startsWith('http')) {
       return message.reply({ embeds: [new EmbedBuilder()
-        .setColor(0xFF1493).setTitle('📥 تحميل الفيديوهات | Video Downloader')
+        .setColor(0xFF1493).setTitle('📥 تحميل الفيديوهات والصوتيات | Direct Downloader')
         .setDescription(
           `**طريقة الاستخدام:** \`${PREFIX}download <الرابط>\` أو \`${PREFIX}dl <الرابط>\`\n\n` +
           `**المنصات المدعومة:**\n` +
@@ -650,32 +677,63 @@ client.on('messageCreate', async (message) => {
     else if (url.includes('tiktok.com')) platform = '🎵 TikTok';
     else if (url.includes('twitter.com') || url.includes('x.com')) platform = '🐦 Twitter/X';
 
+    const directDlLink = getDirectDownloadLink(url);
     const tmpFile = path.join(os.tmpdir(), `dl_${Date.now()}.mp4`);
+
     try {
       await downloadVideo(url, tmpFile);
       if (!fs.existsSync(tmpFile)) return statusMsg.edit(`❌ لم ينشأ ملف الفيديو.`);
 
       const fileSizeMB = fs.statSync(tmpFile).size / (1024 * 1024);
+      
+      const downloadButton = new ButtonBuilder()
+        .setLabel('📥 فتح صفحة التحميل المباشرة')
+        .setStyle(ButtonStyle.Link)
+        .setURL(directDlLink);
+
       if (fileSizeMB > MAX_UPLOAD_MB) {
         fs.unlinkSync(tmpFile);
         return statusMsg.edit({ content: null, embeds: [new EmbedBuilder()
-          .setColor(0xFF6600).setTitle('⚠️ الملف كبير جداً')
-          .setDescription(`حجم الفيديو **${fileSizeMB.toFixed(1)}MB** أعلى من حد الرفع المباشر (${MAX_UPLOAD_MB}MB).\n\n**📥 [افتح واعرض الرابط مباشرة](${url})**`)]});
+          .setColor(0xFF6600).setTitle('⚠️ الملف كبير جداً للرفع المباشر')
+          .setDescription(
+            `حجم الفيديو **${fileSizeMB.toFixed(1)}MB** أعلى من حد المسموح للرفع (${MAX_UPLOAD_MB}MB).\n\n` +
+            `**📥 [اضغط هنا للتحميل المباشر من المتصفح](${directDlLink})**`
+          )], components: [new ActionRowBuilder().addComponents(downloadButton)]});
       }
 
       const embed = new EmbedBuilder()
         .setColor(0xFF1493).setTitle('✅ تم التحميل والرفع بنجاح!')
-        .setDescription(`> 📌 **المنصة:** ${platform}\n> 📦 **الحجم:** ${fileSizeMB.toFixed(2)} MB\n> 👤 **بواسطة:** <@${message.author.id}>`)
+        .setDescription(
+          `> 📌 **المنصة:** ${platform}\n` +
+          `> 📦 **الحجم:** ${fileSizeMB.toFixed(2)} MB\n` +
+          `> 👤 **بواسطة:** <@${message.author.id}>\n\n` +
+          `📥 **[اضغط هنا للتحميل المباشر بصيغ مختلفة](${directDlLink})**`
+        )
         .setFooter({ text: 'Powered by yt-dlp 📥' });
 
-      await statusMsg.edit({ content: null, embeds: [embed], files: [new AttachmentBuilder(tmpFile, { name: 'video.mp4' })] });
+      await statusMsg.edit({
+        content: null,
+        embeds: [embed],
+        files: [new AttachmentBuilder(tmpFile, { name: 'video.mp4' })],
+        components: [new ActionRowBuilder().addComponents(downloadButton)]
+      });
+
       setTimeout(() => { try { fs.unlinkSync(tmpFile); } catch(e) {} }, 15000);
     } catch (err) {
       console.error('[download error]', err.message);
       try { fs.unlinkSync(tmpFile); } catch(e) {}
+      
+      const fallbackBtn = new ButtonBuilder()
+        .setLabel('🌐 فتح صفحة التحميل البديلة')
+        .setStyle(ButtonStyle.Link)
+        .setURL(directDlLink);
+
       return statusMsg.edit({ content: null, embeds: [new EmbedBuilder()
-        .setColor(0xFF0000).setTitle('❌ فشل التحميل')
-        .setDescription(`**السبب:** \`${err.message?.slice(0, 200) || 'خطأ غير معروف'}\`\n\n> تأكد من صحة الرابط وأن الحساب عام (Instagram)`)]});
+        .setColor(0xFF1493).setTitle('📥 رابط التحميل المباشر السريع')
+        .setDescription(
+          `يمكنك تحميل الفيديو/الصوت مباشرة عبر الرابط أدناه:\n\n` +
+          `👉 **[اضغط هنا لفتح صفحة التحميل المباشرة](${directDlLink})**`
+        )], components: [new ActionRowBuilder().addComponents(fallbackBtn)]});
     }
     return;
   }
@@ -787,7 +845,6 @@ client.on('messageCreate', async (message) => {
 
         console.log('▶ Streaming:', youtubeUrl, 'using binary:', binaryPath);
 
-        // Stop previous processes if any
         const existingData = voiceData.get(message.guild.id);
         if (existingData) {
           try { if (existingData.player) existingData.player.stop(true); } catch(e) {}
@@ -795,10 +852,8 @@ client.on('messageCreate', async (message) => {
           try { if (existingData.ffmpegProc) existingData.ffmpegProc.kill('SIGKILL'); } catch(e) {}
         }
 
-        // Create stream
         const { ytdlpProc, ffmpegProc, audioStream } = createYtDlpStream(youtubeUrl, binaryPath);
 
-        // Join/get voice channel
         let connection = voicePkg.getVoiceConnection(message.guild.id);
         if (!connection || connection.state.status === voicePkg.VoiceConnectionStatus.Destroyed) {
           connection = voicePkg.joinVoiceChannel({
@@ -816,7 +871,6 @@ client.on('messageCreate', async (message) => {
           return statusMsg.edit(`❌ فشل الاتصال بالروم الصوتي. حاول مجدداً.`);
         }
 
-        // Create AudioResource from PCM s16le stream
         const resource = voicePkg.createAudioResource(audioStream, {
           inputType: voicePkg.StreamType.Raw,
           inlineVolume: true
@@ -831,7 +885,6 @@ client.on('messageCreate', async (message) => {
 
         voiceData.set(message.guild.id, { connection, player, ytdlpProc, ffmpegProc });
 
-        // Keep connection active even when song finishes
         let hasPlayed = false;
         player.on('stateChange', (oldState, newState) => {
           console.log(`🎵 Player status: ${oldState.status} → ${newState.status}`);
@@ -852,10 +905,16 @@ client.on('messageCreate', async (message) => {
         });
 
         const displayTitle = songArtist ? `${songTitle} — ${songArtist}` : songTitle;
+        const directDlLink = getDirectDownloadLink(youtubeUrl);
 
-        // Button link to YouTube
+        // Buttons for Download and YouTube
         const downloadBtn = new ButtonBuilder()
-          .setLabel('📥 تحميل / Download')
+          .setLabel('📥 تحميل MP3/MP4 (Direct Download)')
+          .setStyle(ButtonStyle.Link)
+          .setURL(directDlLink);
+
+        const youtubeBtn = new ButtonBuilder()
+          .setLabel('🎬 فتح على YouTube')
           .setStyle(ButtonStyle.Link)
           .setURL(youtubeUrl);
 
@@ -866,7 +925,7 @@ client.on('messageCreate', async (message) => {
             `> 🎵 **${displayTitle}**\n` +
             `> 🔊 **الروم الصوتي:** <#${voiceChannel.id}>\n` +
             `> 👤 **بواسطة:** <@${message.author.id}>\n\n` +
-            `> 💡 **اضغط الزر أدناه لتحميل الأغنية مباشرة!**`
+            `> 📥 **[اضغط هنا لتحميل الصوت/الفيديو مباشرة](${directDlLink})**`
           )
           .setThumbnail(coverImage)
           .setFooter({ text: 'Powered by yt-dlp + FFmpeg 🎧' });
@@ -874,7 +933,7 @@ client.on('messageCreate', async (message) => {
         return statusMsg.edit({
           content: null,
           embeds: [playEmbed],
-          components: [new ActionRowBuilder().addComponents(downloadBtn)]
+          components: [new ActionRowBuilder().addComponents(downloadBtn, youtubeBtn)]
         });
 
       } catch (err) {
@@ -901,7 +960,9 @@ client.on('messageCreate', async (message) => {
       ).setThumbnail(user.displayAvatarURL({ dynamic: true }))] });
   }
 
-  // ── ANIME COMMANDS ──
+  // ══════════════════════════════════════════
+  // ── ANIME GIF COMMANDS (BEAUTIFUL HIGH AESTHETIC DESIGN) ──
+  // ══════════════════════════════════════════
   const ANIME_COMMANDS = [
     'hug','kiss','pat','slap','cuddle','poke','punch','bite','lick','highfive',
     'wave','bonk','kill','shoot','nom','kick','feed','wink',
@@ -918,42 +979,66 @@ client.on('messageCreate', async (message) => {
 
     if (SOLO.includes(command)) {
       const msgs = {
-        dance: `💃 **${message.author.username}** يرقص بسعادة!`, cry: `😢 **${message.author.username}** يبكي...`,
-        blush: `😳 **${message.author.username}** يحمر خجلاً!`, happy: `😊 **${message.author.username}** سعيد جداً!`,
-        sleep: `😴 **${message.author.username}** نايم!`, bored: `😑 **${message.author.username}** يشعر بالملل...`,
-        think: `🤔 **${message.author.username}** يفكر...`, facepalm: `🤦 **${message.author.username}** يضرب وجهه!`,
-        clap: `👏 **${message.author.username}** يصفّق!`, shrug: `🤷 **${message.author.username}** لا يعرف!`,
-        confused: `😕 **${message.author.username}** محتار!`, nervous: `😰 **${message.author.username}** متوتر!`,
-        triggered: `😤 **${message.author.username}** غاضب جداً!`, run: `🏃 **${message.author.username}** يجري!`,
-        thumbsup: `👍 **${message.author.username}** ممتاز!`,
-        waifu: `🌸 Waifu لـ **${message.author.username}**`, neko: `🐱 Neko لـ **${message.author.username}**`,
+        dance:     `💃 **${message.author.username}** يرقص بسعادة ولطف! ${EMOJIS.REM_DANCE}`,
+        cry:       `😢 **${message.author.username}** يبكي بحرقة... ${EMOJIS.ANIME_SCREAM}`,
+        blush:     `😳 **${message.author.username}** يحمر خجلاً ولطافة! ${EMOJIS.BLUSHING_BOY}`,
+        happy:     `😊 **${message.author.username}** في غاية السعادة! ✨`,
+        sleep:     `😴 **${message.author.username}** مستغرق في النوم... 💤`,
+        bored:     `😑 **${message.author.username}** يشعر بالملل الشديد...`,
+        think:     `🤔 **${message.author.username}** عميق التفكير... 💭`,
+        facepalm:  `🤦 **${message.author.username}** يضع يده على وجهه إحباطاً!`,
+        clap:      `👏 **${message.author.username}** يصفّق بحرارة! 🎉`,
+        shrug:     `🤷 **${message.author.username}** لا يعلم شيئاً!`,
+        confused:  `😕 **${message.author.username}** محتار جداً!`,
+        nervous:   `😰 **${message.author.username}** يتصبب عرقاً وتوتراً!`,
+        triggered: `😤 **${message.author.username}** غاضب وفاقد للأعصاب! 💥`,
+        run:       `🏃 **${message.author.username}** يركض بأقصى سرعة! 💨`,
+        thumbsup:  `👍 **${message.author.username}** يعطي إبهاماً للأعلى! ✨`,
+        waifu:     `🌸 صورة Waifu أنيقة خصيصاً لـ **${message.author.username}**`,
+        neko:      `🐱 صورة Neko كيوت لـ **${message.author.username}**`,
       };
-      return message.reply({ embeds: [new EmbedBuilder().setColor(0xFF1493).setDescription(msgs[command] || `**${message.author.username}** ${command}`).setImage(gifUrl)] });
+
+      const animeEmbed = new EmbedBuilder()
+        .setColor(0xFF1493)
+        .setAuthor({ name: `${client.user.username} Anime React 🌸`, iconURL: message.author.displayAvatarURL({ dynamic: true }) })
+        .setDescription(`### ${msgs[command] || `**${message.author.username}** ${command}`}`)
+        .setImage(gifUrl)
+        .setFooter({ text: `طُلب بواسطة: ${message.author.username}`, iconURL: message.author.displayAvatarURL() });
+
+      return message.reply({ embeds: [animeEmbed] });
     }
 
     const tMsgs = {
-      hug: isSelf ? `🤗 **${message.author.username}** يعانق نفسه!` : `🤗 **${message.author.username}** يعانق <@${targetUser.id}>!`,
-      kiss: `💋 **${message.author.username}** يقبّل <@${targetUser.id}>!`,
-      pat: `✋ **${message.author.username}** يربّت على رأس <@${targetUser.id}>!`,
-      slap: `👋 **${message.author.username}** يصفع <@${targetUser.id}>!`,
-      cuddle: `🥰 **${message.author.username}** يحتضن <@${targetUser.id}>!`,
-      poke: `👉 **${message.author.username}** يوخز <@${targetUser.id}>!`,
-      punch: `👊 **${message.author.username}** يلكم <@${targetUser.id}>!`,
-      bite: `😬 **${message.author.username}** يعض <@${targetUser.id}>!`,
-      lick: `👅 **${message.author.username}** يلحس <@${targetUser.id}>!`,
-      highfive: `🙌 **${message.author.username}** هاي فايف لـ <@${targetUser.id}>!`,
-      wave: `👋 **${message.author.username}** يلوّح لـ <@${targetUser.id}>!`,
-      bonk: `🔨 **${message.author.username}** يضرب <@${targetUser.id}>!`,
-      kill: `💀 **${message.author.username}** يطلق النار على <@${targetUser.id}>!`,
-      shoot: `🔫 **${message.author.username}** يصوّب على <@${targetUser.id}>!`,
-      nom: `🍪 **${message.author.username}** يأكل <@${targetUser.id}>!`,
-      kick: `🦵 **${message.author.username}** يركل <@${targetUser.id}>!`,
-      feed: `🍱 **${message.author.username}** يطعم <@${targetUser.id}>!`,
-      wink: `😉 **${message.author.username}** يغمز لـ <@${targetUser.id}>!`,
-      smug: `😏 **${message.author.username}** يبتسم لـ <@${targetUser.id}>!`,
-      peek: `👀 **${message.author.username}** يتلصص على <@${targetUser.id}>!`,
+      hug:      isSelf ? `🤗 **${message.author.username}** يعانق نفسه بمحبة!` : `🤗 **${message.author.username}** يعانق <@${targetUser.id}> عناقاً دافئاً! ${EMOJIS.SHARK_HUG}`,
+      kiss:     `💋 **${message.author.username}** يقبّل <@${targetUser.id}> قبضة لطيفة! 💕`,
+      pat:      `✋ **${message.author.username}** يربّت على رأس <@${targetUser.id}> بلطف! ${EMOJIS.PIKA_CHEEKS}`,
+      slap:     `👋 **${message.author.username}** يصفع <@${targetUser.id}> صفعة أنمي! 💥`,
+      cuddle:   `🥰 **${message.author.username}** يحتضن <@${targetUser.id}> بحنان! ✨`,
+      poke:     `👉 **${message.author.username}** يوخز <@${targetUser.id}> بشقاوة!`,
+      punch:    `👊 **${message.author.username}** يلكم <@${targetUser.id}> لكمة أنمي قوية! 💥`,
+      bite:     `😬 **${message.author.username}** يعض <@${targetUser.id}>! 🦷`,
+      lick:     `👅 **${message.author.username}** يلحس <@${targetUser.id}>!`,
+      highfive: `🙌 **${message.author.username}** يعطي High Five لـ <@${targetUser.id}>! ⭐`,
+      wave:     `👋 **${message.author.username}** يلوّح بيده لـ <@${targetUser.id}>! ✨`,
+      bonk:     `🔨 **${message.author.username}** يضرب <@${targetUser.id}> على رأسه! 💥`,
+      kill:     `💀 **${message.author.username}** يطلق النار على <@${targetUser.id}>! 🔫`,
+      shoot:    `🔫 **${message.author.username}** يصوّب بدقة على <@${targetUser.id}>!`,
+      nom:      `🍪 **${message.author.username}** يأكل <@${targetUser.id}> بكل شراهة!`,
+      kick:     `🦵 **${message.author.username}** يركل <@${targetUser.id}> ركلة أنمي! 💥`,
+      feed:     `🍱 **${message.author.username}** يطعم <@${targetUser.id}> طعاماً لذيذاً! 😋`,
+      wink:     `😉 **${message.author.username}** يغمز لـ <@${targetUser.id}> بغمزة ساحرة! ✨`,
+      smug:     `😏 **${message.author.username}** يبتسم بسخرية ولطافة لـ <@${targetUser.id}>! ${EMOJIS.TOHRU_SMUG}`,
+      peek:     `👀 **${message.author.username}** يتلصص بخجل على <@${targetUser.id}>!`,
     };
-    return message.reply({ embeds: [new EmbedBuilder().setColor(0xFF1493).setDescription(tMsgs[command] || `**${message.author.username}** ${command} <@${targetUser.id}>`).setImage(gifUrl)] });
+
+    const animeEmbed = new EmbedBuilder()
+      .setColor(0xFF1493)
+      .setAuthor({ name: `${client.user.username} Anime Action 🌸`, iconURL: message.author.displayAvatarURL({ dynamic: true }) })
+      .setDescription(`### ${tMsgs[command] || `**${message.author.username}** ${command} <@${targetUser.id}>`}`)
+      .setImage(gifUrl)
+      .setFooter({ text: `طُلب بواسطة: ${message.author.username}`, iconURL: message.author.displayAvatarURL() });
+
+    return message.reply({ embeds: [animeEmbed] });
   }
 
   // ── BOTINFO ──
