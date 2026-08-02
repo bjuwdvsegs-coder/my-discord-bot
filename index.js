@@ -298,7 +298,16 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 
 // ── AI Chat via Google Gemini ──
 async function askGemini(question) {
-  const apiKey = process.env.GEMINI_API_KEY || Buffer.from('QVEuQWI4Uk42S1Q0MEFHYUQzWU44X0c5bmFJM0s2X09UWFN3Ry0xczMwS3kzM2lqcjZlNWc=', 'base64').toString();
+  const apiKey = (process.env.GEMINI_API_KEY || '').trim();
+  if (!apiKey) {
+    return (
+      `⚠️ **ملاحظة للمالك:** لم يتم العثور على \`GEMINI_API_KEY\` في Railway!\n\n` +
+      `**خطوات تفعيل الذكاء الاصطناعي:**\n` +
+      `1️⃣ اذهب إلى **[Google AI Studio](https://aistudio.google.com/app/apikey)** وانسخ المفتاح الذي يبدأ بـ \`AIzaSy...\`\n` +
+      `2️⃣ في **Railway** ➔ **Variables** ➔ أضف: \`GEMINI_API_KEY\` = المفتاح\n` +
+      `3️⃣ اضغط **Redeploy** في Railway ليتم تفعيل التغيير!`
+    );
+  }
 
   const callGeminiModel = (modelName) => {
     return new Promise((resolve, reject) => {
@@ -607,6 +616,7 @@ client.once('clientReady', async () => {
   console.log(`===========================================`);
   console.log(` 🤖 Bot Tag: ${client.user.tag}`);
   console.log(` 👑 Owner ID: ${OWNER_ID} | Prefix: ${PREFIX}`);
+  console.log(` 🤖 GEMINI_API_KEY Status: ${process.env.GEMINI_API_KEY ? 'Loaded (' + process.env.GEMINI_API_KEY.slice(0, 7) + '...)' : 'MISSING (No key configured)'}`);
   console.log(`===========================================`);
 
   await ensureYtDlp();
