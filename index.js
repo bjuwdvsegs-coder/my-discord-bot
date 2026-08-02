@@ -298,32 +298,54 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 
 // ── AI Chat via Google Gemini ──
 async function askGemini(question) {
-  return new Promise((resolve) => {
-    const k = process.env.GEMINI_API_KEY || Buffer.from('QVEuQWI4Uk42S1Q0MEFHYUQzWU44X0c5bmFJM0s2X09UWFN3Ry0xczMwS3kzM2lqcjZlNWc=', 'base64').toString();
-    const body = JSON.stringify({ contents: [{ parts: [{ text: `أنت مساعد ذكي اسمك Rilina. أجب باللغة العربية أو الإنجليزية حسب السؤال بشكل واضح ومختصر.\n\nالسؤال: ${question}` }] }] });
-    const req = https.request({
-      hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/gemini-2.0-flash:generateContent?key=${k}`,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
-    }, (res) => {
-      let data = '';
-      res.on('data', c => data += c);
-      res.on('end', () => {
-        try {
-          const json = JSON.parse(data);
-          const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) return resolve(text);
-          const errMsg = json?.error?.message || JSON.stringify(json).slice(0, 300);
-          resolve(`⚠️ ${errMsg}`);
-        } catch (e) { resolve('❌ خطأ في معالجة رد الذكاء الاصطناعي.'); }
+  const apiKey = process.env.GEMINI_API_KEY || Buffer.from('QVEuQWI4Uk42S1Q0MEFHYUQzWU44X0c5bmFJM0s2X09UWFN3Ry0xczMwS3kzM2lqcjZlNWc=', 'base64').toString();
+
+  const callGeminiModel = (modelName) => {
+    return new Promise((resolve, reject) => {
+      const body = JSON.stringify({
+        contents: [{ parts: [{ text: `أنت مساعد ذكي ومفيد اسمك Rilina. أجب باللغة العربية أو الإنجليزية حسب السؤال بشكل واضح ومختصر.\n\nالسؤال: ${question}` }] }]
       });
+      const req = https.request({
+        hostname: 'generativelanguage.googleapis.com',
+        path: `/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
+      }, (res) => {
+        let data = '';
+        res.on('data', c => data += c);
+        res.on('end', () => {
+          try {
+            const json = JSON.parse(data);
+            const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) return resolve(text);
+            reject(json?.error || new Error(data.slice(0, 200)));
+          } catch (e) { reject(e); }
+        });
+      });
+      req.on('error', reject);
+      req.setTimeout(15000, () => { req.destroy(); reject(new Error('Timeout')); });
+      req.write(body);
+      req.end();
     });
-    req.on('error', () => resolve('❌ فشل الاتصال بخادم AI.'));
-    req.setTimeout(20000, () => { req.destroy(); resolve('⏱️ انتهت مهلة الرد. حاول مرة أخرى.'); });
-    req.write(body);
-    req.end();
-  });
+  };
+
+  try {
+    return await callGeminiModel('gemini-2.0-flash');
+  } catch (err1) {
+    try {
+      return await callGeminiModel('gemini-1.5-flash');
+    } catch (err2) {
+      console.log('⚠️ Gemini API error:', err2.message || err2);
+      return (
+        `⚠️ **الذكاء الاصطناعي يتطلب مفتاح API معتمد!**\n\n` +
+        `> 💡 **المفتاح الحالي ينتهي بـ Quota أو غير صالح.**\n\n` +
+        `**خطوات التفعيل في 30 ثانية (مكفول ومجاني 100%):**\n` +
+        `1️⃣ افتح الرابط المجاني: **https://aistudio.google.com/apikey**\n` +
+        `2️⃣ اضغط **Create API Key** وانسخ المفتاح (يبدأ بـ \`AIzaSy...\`)\n` +
+        `3️⃣ اذهب إلى **Railway.app** ➔ **Variables** ➔ أضف: \`GEMINI_API_KEY\` = المفتاح الجديد`
+      );
+    }
+  }
 }
 
 // ── Send DM error alert to owner ──
