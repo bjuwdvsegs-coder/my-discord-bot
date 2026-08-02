@@ -329,21 +329,44 @@ async function askGemini(question) {
     });
   };
 
+  const callPollinations = () => {
+    return new Promise((resolve, reject) => {
+      const u = 'https://text.pollinations.ai/' + encodeURIComponent(`أنت مساعد ذكي ومفيد اسمك Rilina. أجب باللغة العربية أو الإنجليزية حسب السؤال بشكل واضح ومختصر.\n\nالسؤال: ${question}`) + '?model=openai';
+      const req = https.get(u, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+        timeout: 12000
+      }, (res) => {
+        let data = '';
+        res.on('data', c => data += c);
+        res.on('end', () => {
+          if (res.statusCode === 200 && data.trim() && !data.includes('error')) resolve(data.trim());
+          else reject(new Error('Pollinations unavailable'));
+        });
+      });
+      req.on('error', reject);
+      req.setTimeout(12000, () => { req.destroy(); reject(new Error('Timeout')); });
+    });
+  };
+
   try {
     return await callGeminiModel('gemini-2.0-flash');
   } catch (err1) {
     try {
       return await callGeminiModel('gemini-1.5-flash');
     } catch (err2) {
-      console.log('⚠️ Gemini API error:', err2.message || err2);
-      return (
-        `⚠️ **الذكاء الاصطناعي يتطلب مفتاح API معتمد!**\n\n` +
-        `> 💡 **المفتاح الحالي ينتهي بـ Quota أو غير صالح.**\n\n` +
-        `**خطوات التفعيل في 30 ثانية (مكفول ومجاني 100%):**\n` +
-        `1️⃣ افتح الرابط المجاني: **https://aistudio.google.com/apikey**\n` +
-        `2️⃣ اضغط **Create API Key** وانسخ المفتاح (يبدأ بـ \`AIzaSy...\`)\n` +
-        `3️⃣ اذهب إلى **Railway.app** ➔ **Variables** ➔ أضف: \`GEMINI_API_KEY\` = المفتاح الجديد`
-      );
+      try {
+        return await callPollinations();
+      } catch (err3) {
+        console.log('⚠️ Gemini & Pollinations API error:', err3.message);
+        return (
+          `⚠️ **الذكاء الاصطناعي يتطلب مفتاح API معتمد!**\n\n` +
+          `> 💡 **رمزك السابق غير مفعّل (الرمز الصحيح يبدأ بـ \`AIzaSy...\`).**\n\n` +
+          `**خطوات التفعيل المجاني 100% في 30 ثانية:**\n` +
+          `1️⃣ افتح الرابط: **[اضغط هنا لتوليد المفتاح](https://aistudio.google.com/app/apikey)**\n` +
+          `2️⃣ اضغط **Create API Key** وانسخ الكود الذي يبدأ بـ \`AIzaSy...\`\n` +
+          `3️⃣ في **Railway.app** ➔ **Variables** ➔ أضف: \`GEMINI_API_KEY\` = المفتاح الجديد`
+        );
+      }
     }
   }
 }
